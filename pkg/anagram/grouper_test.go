@@ -3,6 +3,7 @@ package anagram
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -78,9 +79,33 @@ func BenchmarkGroup(b *testing.B) {
 		largeInput = append(largeInput, words...)
 	}
 
-	b.ResetTimer() // Сбрасываем таймер, чтобы подготовка данных не влияла на результат
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		Group(largeInput)
 	}
+}
+
+func FuzzNormalizeWord(f *testing.F) {
+	f.Add("hello")
+	f.Add("World")
+	f.Add("Тест")
+	f.Add("123!@#")
+	f.Add("test one")
+    f.Add("   leading and trailing spaces   ")
+
+	f.Fuzz(func(t *testing.T, word string) {
+		normalized := normalizeWord(word)
+
+		if strings.ContainsRune(normalized, ' ') {
+			t.Errorf("Нормализованная строка содержит пробел: %q", normalized)
+		}
+
+		runes := []rune(normalized)
+		if !sort.SliceIsSorted(runes, func(i, j int) bool {
+			return runes[i] < runes[j]
+		}) {
+			t.Errorf("Нормализованная строка не отсортирована: %q", normalized)
+		}
+	})
 }
