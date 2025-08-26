@@ -3,12 +3,19 @@ package anagram
 import (
 	"sort"
 	"strings"
+	"unicode"
 )
 
 func normalizeWord(word string) string {
 	lowerWord := strings.ToLower(word)
 
-	runes := []rune(lowerWord)
+	runes := make([]rune, 0, len(lowerWord))
+
+	for _, r := range lowerWord {
+		if !unicode.IsSpace(r) {
+			runes = append(runes, r)
+		}
+	}
 
 	sort.Slice(runes, func(i, j int) bool {
 		return runes[i] < runes[j]
