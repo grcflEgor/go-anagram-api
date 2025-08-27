@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -17,6 +21,7 @@ import (
 )
 
 const (
+	port = ":8080"
 	taskQueueSize = 100
 	numWorkers = 4
 )
@@ -48,9 +53,32 @@ func main() {
 		r.Get("/anagrams/groups/{id}", handlers.GetResult)
 	})
 
-	port := ":8080"
-	logger.AppLogger.Info("Starting server", zap.String("port", port))
-	if err := http.ListenAndServe(port, r); err != nil {
-		logger.AppLogger.Fatal("Failed to start server", zap.Error(err))
+	srv := &http.Server{
+		Addr: port,
+		Handler: r,
 	}
+
+	go func() {
+		logger.AppLogger.Info("Starting server", zap.String("port", port))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.AppLogger.Fatal("Failed to start server", zap.Error(err))
+		}
+	}()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit
+	logger.AppLogger.Info("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.AppLogger.Fatal("server forced to shutdown", zap.Error(err))
+	}
+
+	close(taskQueue)
+	logger.AppLogger.Info("task queue closed, waiting for workers finish")
+	logger.AppLogger.Info("server exiting")
 }
+	
