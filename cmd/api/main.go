@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -11,6 +12,7 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/repository"
 	"github.com/grcflEgor/go-anagram-api/internal/usecase"
 	"github.com/grcflEgor/go-anagram-api/internal/worker"
+	"github.com/patrickmn/go-cache"
 )
 
 const (
@@ -19,11 +21,16 @@ const (
 )
 
 func main() {
-	taskRepo := repository.NewInMemoryStorage()
-	taskQueue := make(chan *domain.Task, taskQueueSize)
-	anagramUseCase := usecase.NewAnagramUseCase(taskRepo, taskQueue)
+	appCache := cache.New(5*time.Minute, 10*time.Minute)
 
-	workerPool := worker.NewPool(taskRepo, taskQueue)
+
+	inMemoryRepo := repository.NewInMemoryStorage()
+	cachedRepo := repository.NewCachedTaskRepository(inMemoryRepo, appCache)
+
+	taskQueue := make(chan *domain.Task, taskQueueSize)
+	anagramUseCase := usecase.NewAnagramUseCase(cachedRepo, taskQueue)
+
+	workerPool := worker.NewPool(cachedRepo, taskQueue)
 	workerPool.Run(numWorkers)
 
 	handlers := httpHandlers.NewHandlers(anagramUseCase)
