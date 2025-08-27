@@ -17,6 +17,6 @@ type Task struct {
 	Result [][]string `json:"result,omitempty"`
 	Error string `json:"error,omitempty"`
 	CreatedAt time.Time `json:"-"`
-	ProcessingTimeMS int64 `json:"processing_time_ms,omitempty"`
-	GroupsCount int `json:"groups_count,omitempty"`
+	ProcessingTimeMS int64 `json:"processing_time_ms"`
+	GroupsCount int `json:"groups_count"`
 }

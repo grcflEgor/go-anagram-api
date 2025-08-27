@@ -9,6 +9,8 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/repository"
 )
 
+var _ AnagramUseCaseProvider = (*AnagramUseCase)(nil)
+
 type AnagramUseCase struct {
 	repo repository.TaskRepository
 	taskQueue chan<- *domain.Task

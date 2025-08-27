@@ -2,11 +2,11 @@ package http
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
-	"time"
 
-	"github.com/google/uuid"
-	"github.com/grcflEgor/go-anagram-api/pkg/anagram"
+	"github.com/go-chi/chi/v5"
+	"github.com/grcflEgor/go-anagram-api/internal/usecase"
 )
 
 
@@ -22,7 +22,19 @@ type GroupResponse struct {
 	GroupsCount int `json:"groups_count"`
 }
 
-func GroupAnagramsHandler(w http.ResponseWriter, r *http.Request) {
+type CreateTaskResponse struct {
+	TaskID string `json:"task_id"`
+}
+
+type Handlers struct {
+	useCase usecase.AnagramUseCaseProvider
+}
+
+func NewHandlers(uc usecase.AnagramUseCaseProvider) *Handlers {
+	return &Handlers{useCase: uc}
+}
+
+func (h *Handlers) GroupAnagrams(w http.ResponseWriter, r *http.Request) {
 	var req GroupRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -30,41 +42,43 @@ func GroupAnagramsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	start := time.Now()
-	grouped := anagram.Group(req.Words)
-	processingTime := time.Since(start).Milliseconds()
-
-	result := make([][]string, 0, len(grouped))
-	for _, group := range grouped {
-		if len(group) > 1 {
-			result = append(result, group)
-		}
-	}
-
-	resp := GroupResponse{
-		TaskID: uuid.New().String(),
-		Status: "completed",
-		Result: result,
-		ProcessingTime: processingTime,
-		GroupsCount: len(result),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "invalid resp body", http.StatusInternalServerError) // посмотрнеть на обратботку ошибок
+	taskID, err := h.useCase.CreateTask(r.Context(), req.Words)
+	if err != nil {
+		http.Error(w, "failed to create task", http.StatusInternalServerError)
 		return
+	}
+
+	resp := CreateTaskResponse{TaskID: taskID}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Printf("failed to write response: %v", err)
 	}
 }
 
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{"status": "ok"}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "invalid resp body", http.StatusInternalServerError) // посмотреть на обработку ошибок
+		log.Printf("failed to write healthcheck response: %v", err)
 	}
 }
 
-func GetResultHandler(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Not Implemented", http.StatusNotImplemented)
+func (h *Handlers) GetResult(w http.ResponseWriter, r *http.Request) {
+	taskID := chi.URLParam(r, "id")
+	if taskID == "" {
+		http.Error(w, "task ID is required", http.StatusBadRequest)
+		return
+	}
+
+	task, err := h.useCase.GetTaskByID(r.Context(), taskID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(task); err != nil {
+		log.Printf("failed to write get result response: %v", err)
+	}
 }
