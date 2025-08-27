@@ -2,11 +2,12 @@ package http
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/grcflEgor/go-anagram-api/internal/usecase"
+	"github.com/grcflEgor/go-anagram-api/pkg/logger"
+	"go.uber.org/zap"
 )
 
 
@@ -35,15 +36,19 @@ func NewHandlers(uc usecase.AnagramUseCaseProvider) *Handlers {
 }
 
 func (h *Handlers) GroupAnagrams(w http.ResponseWriter, r *http.Request) {
+	l := logger.FromContext(r.Context())
+
 	var req GroupRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		l.Info("invalid req body")
 		http.Error(w, "invalid req body", http.StatusBadRequest)
 		return
 	}
 
 	taskID, err := h.useCase.CreateTask(r.Context(), req.Words)
 	if err != nil {
+		l.Error("failed to create task", zap.Error(err))
 		http.Error(w, "failed to create task", http.StatusInternalServerError)
 		return
 	}
@@ -52,33 +57,40 @@ func (h *Handlers) GroupAnagrams(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		log.Printf("failed to write response: %v", err)
+		l.Error("failed to write response", zap.Error(err))
 	}
 }
 
 func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	l := logger.FromContext(r.Context())
+
 	resp := map[string]string{"status": "ok"}
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		log.Printf("failed to write healthcheck response: %v", err)
+		l.Error("failed to write healthcheck response", zap.Error(err))
 	}
 }
 
 func (h *Handlers) GetResult(w http.ResponseWriter, r *http.Request) {
+	l := logger.FromContext(r.Context())
+
 	taskID := chi.URLParam(r, "id")
 	if taskID == "" {
+		l.Info("task ID is required")
 		http.Error(w, "task ID is required", http.StatusBadRequest)
 		return
 	}
 
 	task, err := h.useCase.GetTaskByID(r.Context(), taskID)
 	if err != nil {
+		l.Error("failed to get task by id", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(task); err != nil {
-		log.Printf("failed to write get result response: %v", err)
+		l.Error("failed to write get result", zap.Error(err))
 	}
 }

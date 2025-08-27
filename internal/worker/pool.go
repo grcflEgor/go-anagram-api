@@ -2,23 +2,25 @@ package worker
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 	"github.com/grcflEgor/go-anagram-api/internal/repository"
 	"github.com/grcflEgor/go-anagram-api/pkg/anagram"
+	"go.uber.org/zap"
 )
 
 type Pool struct {
 	repo repository.TaskRepository
 	taskQueue <-chan *domain.Task
+	logger *zap.Logger
 }
 
-func NewPool(repo repository.TaskRepository, taskQueue <-chan *domain.Task) *Pool {
+func NewPool(repo repository.TaskRepository, taskQueue <-chan *domain.Task, logger *zap.Logger) *Pool {
 	return &Pool{
 		repo: repo,
 		taskQueue: taskQueue,
+		logger: logger,
 	}
 }
 
@@ -29,9 +31,12 @@ func (p *Pool) Run(numWorkers int) {
 }
 
 func (p *Pool) worker(id int) {
-	log.Printf("worker %d started", id)
+	workerLog := p.logger.With(zap.Int("worker_id", id))
+	workerLog.Info("worker started")
+
 	for task := range p.taskQueue {
-		log.Printf("worker %d: processing task %s", id, task.ID)
+		taskLog := workerLog.With(zap.String("task_id", task.ID))
+		taskLog.Info("processing task")
 
 		start := time.Now()
 		grouped := anagram.Group(task.Words)
@@ -50,9 +55,14 @@ func (p *Pool) worker(id int) {
 		task.GroupsCount = len(result)
 
 		if err := p.repo.Save(context.Background(), task); err != nil {
-			log.Printf("worker %d: failed to save task%s: %v", id, task.ID, err)
-			task.Status = domain.StatusFailed
+    		taskLog.Error("failed to save completed task", zap.Error(err))
+    		task.Status = domain.StatusFailed
+    		task.Error = err.Error() 
 		}
-		log.Printf("worker %d: finished task %s:", id, task.ID)
+    
+    	if err2 := p.repo.Save(context.Background(), task); err2 != nil {
+        	taskLog.Error("CRITICAL: failed to save FAILED task status", zap.Error(err2))
+   		}
+		taskLog.Info("finished task")
 	}
 }

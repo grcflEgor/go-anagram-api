@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -12,7 +11,9 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/repository"
 	"github.com/grcflEgor/go-anagram-api/internal/usecase"
 	"github.com/grcflEgor/go-anagram-api/internal/worker"
+	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"github.com/patrickmn/go-cache"
+	"go.uber.org/zap"
 )
 
 const (
@@ -21,8 +22,10 @@ const (
 )
 
 func main() {
-	appCache := cache.New(5*time.Minute, 10*time.Minute)
+	logger.InitLogger()
+	defer func() { _ = logger.AppLogger.Sync() }()
 
+	appCache := cache.New(5*time.Minute, 10*time.Minute)
 
 	inMemoryRepo := repository.NewInMemoryStorage()
 	cachedRepo := repository.NewCachedTaskRepository(inMemoryRepo, appCache)
@@ -30,14 +33,14 @@ func main() {
 	taskQueue := make(chan *domain.Task, taskQueueSize)
 	anagramUseCase := usecase.NewAnagramUseCase(cachedRepo, taskQueue)
 
-	workerPool := worker.NewPool(cachedRepo, taskQueue)
+	workerPool := worker.NewPool(cachedRepo, taskQueue, logger.AppLogger)
 	workerPool.Run(numWorkers)
 
 	handlers := httpHandlers.NewHandlers(anagramUseCase)
 
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(httpHandlers.LoggerMiddleware)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handlers.HealthCheck)
@@ -46,8 +49,8 @@ func main() {
 	})
 
 	port := ":8080"
-	log.Printf("starting server on %s", port)
+	logger.AppLogger.Info("Starting server", zap.String("port", port))
 	if err := http.ListenAndServe(port, r); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+		logger.AppLogger.Fatal("Failed to start server", zap.Error(err))
 	}
 }
