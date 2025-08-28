@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/grcflEgor/go-anagram-api/pkg/anagram"
 	"go.uber.org/zap"
 )
+
+const processingTimeout = 30 * time.Second
 
 type Pool struct {
 	repo repository.TaskRepository
@@ -40,36 +43,45 @@ func (p *Pool) worker(id int) {
 	workerLog.Info("worker started")
 
 	for task := range p.taskQueue {
-		taskLog := workerLog.With(zap.String("task_id", task.ID))
-		taskLog.Info("processing task")
+		func(task *domain.Task) {
+			taskLog := workerLog.With(zap.String("task_id", task.ID))
+			taskLog.Info("processing task")
 
-		start := time.Now()
-		grouped := anagram.Group(task.Words)
-		processingTime := time.Since(start).Milliseconds()
+			start := time.Now()
 
-		result := make([][]string, 0, len(grouped))
-		for _, group := range grouped {
-			if len(group) > 1 {
-				result = append(result, group)
+			ctx, cancel := context.WithTimeout(context.Background(), processingTimeout)
+			defer cancel()
+
+			grouped, err := anagram.Group(ctx, task.Words)
+			processingTime := time.Since(start).Milliseconds()
+			if err != nil {
+				if errors.Is(err, context.DeadlineExceeded) {
+					taskLog.Warn("task processing timeout")
+					task.Status = domain.StatusFailed
+					task.Error = "task processing timeout"
+				} else {
+					taskLog.Error("task processing failed", zap.Error(err))
+					task.Status = domain.StatusFailed
+					task.Error = err.Error()
+				}
+			} else {
+				result := make([][]string, 0, len(grouped))
+				for _, group := range grouped {
+					if len(group) > 1 {
+						result = append(result, group)
+					}
+				}
+				task.Status = domain.StatusCompleted
+				task.Result = result
+				task.ProcessingTimeMS = processingTime
+				task.GroupsCount = len(result)
 			}
-		}
 
-		task.Status = domain.StatusCompleted
-		task.Result = result
-		task.ProcessingTimeMS = processingTime
-		task.GroupsCount = len(result)
-
-		if err := p.repo.Save(context.Background(), task); err != nil {
-    		taskLog.Error("failed to save completed task", zap.Error(err))
-    		task.Status = domain.StatusFailed
-    		task.Error = err.Error() 
-		
-    
-    		if err2 := p.repo.Save(context.Background(), task); err2 != nil {
-        		taskLog.Error("failed to save FAILED task status", zap.Error(err2))
-   			}
+			if err := p.repo.Save(context.Background(), task); err != nil {
+				taskLog.Error("failed to save completed task", zap.String("status", string(task.Status)), zap.Error(err))
+			}
 			taskLog.Info("finished task")
-		}
+		}(task)
 	}
 }
 
