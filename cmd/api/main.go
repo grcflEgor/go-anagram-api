@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httprate"
 	"github.com/go-playground/validator/v10"
 	httpHandlers "github.com/grcflEgor/go-anagram-api/internal/controller/http/v1"
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
@@ -49,6 +50,11 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(httpHandlers.LoggerMiddleware)
+	r.Use(httprate.Limit(
+		100,
+		1*time.Minute,
+		httprate.WithKeyFuncs(httprate.KeyByIP, httprate.KeyByEndpoint),
+	))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handlers.HealthCheck)
