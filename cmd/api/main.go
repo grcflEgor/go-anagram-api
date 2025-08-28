@@ -77,8 +77,8 @@ func main() {
 		logger.AppLogger.Fatal("server forced to shutdown", zap.Error(err))
 	}
 
-	close(taskQueue)
-	logger.AppLogger.Info("task queue closed, waiting for workers finish")
+	workerPool.Stop()
+	logger.AppLogger.Info("all workers are stopped")
 	logger.AppLogger.Info("server exiting")
 }
 	

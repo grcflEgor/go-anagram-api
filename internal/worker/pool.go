@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
@@ -12,11 +13,12 @@ import (
 
 type Pool struct {
 	repo repository.TaskRepository
-	taskQueue <-chan *domain.Task
+	taskQueue chan *domain.Task
 	logger *zap.Logger
+	wg sync.WaitGroup
 }
 
-func NewPool(repo repository.TaskRepository, taskQueue <-chan *domain.Task, logger *zap.Logger) *Pool {
+func NewPool(repo repository.TaskRepository, taskQueue chan *domain.Task, logger *zap.Logger) *Pool {
 	return &Pool{
 		repo: repo,
 		taskQueue: taskQueue,
@@ -26,11 +28,14 @@ func NewPool(repo repository.TaskRepository, taskQueue <-chan *domain.Task, logg
 
 func (p *Pool) Run(numWorkers int) {
 	for i := 0; i < numWorkers; i++ {
+		p.wg.Add(1)
 		go p.worker(i + 1)
 	}
 }
 
 func (p *Pool) worker(id int) {
+	defer p.wg.Done()
+
 	workerLog := p.logger.With(zap.Int("worker_id", id))
 	workerLog.Info("worker started")
 
@@ -58,11 +63,17 @@ func (p *Pool) worker(id int) {
     		taskLog.Error("failed to save completed task", zap.Error(err))
     		task.Status = domain.StatusFailed
     		task.Error = err.Error() 
-		}
+		
     
-    	if err2 := p.repo.Save(context.Background(), task); err2 != nil {
-        	taskLog.Error("CRITICAL: failed to save FAILED task status", zap.Error(err2))
-   		}
-		taskLog.Info("finished task")
+    		if err2 := p.repo.Save(context.Background(), task); err2 != nil {
+        		taskLog.Error("failed to save FAILED task status", zap.Error(err2))
+   			}
+			taskLog.Info("finished task")
+		}
 	}
+}
+
+func (p *Pool) Stop() {
+	close(p.taskQueue)
+	p.wg.Wait()
 }
