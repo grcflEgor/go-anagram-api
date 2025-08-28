@@ -1,10 +1,11 @@
-package http
+package v1
 
 import (
 	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"github.com/grcflEgor/go-anagram-api/internal/usecase"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"go.uber.org/zap"
@@ -12,7 +13,7 @@ import (
 
 
 type GroupRequest struct{
-	Words []string `json:"words"`
+	Words []string `json:"words" validate:"required, min=1"`
 }
 
 type GroupResponse struct {
@@ -29,10 +30,14 @@ type CreateTaskResponse struct {
 
 type Handlers struct {
 	useCase usecase.AnagramUseCaseProvider
+	validate *validator.Validate
 }
 
-func NewHandlers(uc usecase.AnagramUseCaseProvider) *Handlers {
-	return &Handlers{useCase: uc}
+func NewHandlers(uc usecase.AnagramUseCaseProvider, validate *validator.Validate) *Handlers {
+	return &Handlers{
+		useCase: uc,
+		validate: validate,
+	}
 }
 
 func (h *Handlers) GroupAnagrams(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +48,12 @@ func (h *Handlers) GroupAnagrams(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		l.Info("invalid req body")
 		http.Error(w, "invalid req body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		l.Info("validation failed", zap.Error(err))
+		http.Error(w, "validation failed: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 

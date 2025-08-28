@@ -10,7 +10,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	httpHandlers "github.com/grcflEgor/go-anagram-api/internal/delivery/http"
+	"github.com/go-playground/validator/v10"
+	httpHandlers "github.com/grcflEgor/go-anagram-api/internal/controller/http/v1"
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 	"github.com/grcflEgor/go-anagram-api/internal/repository"
 	"github.com/grcflEgor/go-anagram-api/internal/usecase"
@@ -32,6 +33,8 @@ func main() {
 
 	appCache := cache.New(5*time.Minute, 10*time.Minute)
 
+	appValidator := validator.New()
+
 	inMemoryRepo := repository.NewInMemoryStorage()
 	cachedRepo := repository.NewCachedTaskRepository(inMemoryRepo, appCache)
 
@@ -41,7 +44,7 @@ func main() {
 	workerPool := worker.NewPool(cachedRepo, taskQueue, logger.AppLogger)
 	workerPool.Run(numWorkers)
 
-	handlers := httpHandlers.NewHandlers(anagramUseCase)
+	handlers := httpHandlers.NewHandlers(anagramUseCase, appValidator)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
