@@ -1,6 +1,7 @@
 package anagram
 
 import (
+	"context"
 	"reflect"
 	"sort"
 	"strings"
@@ -56,7 +57,10 @@ func TestGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := Group(tc.words)
+			result, err := Group(context.Background(), tc.words)
+			if err != nil {
+				t.Fatalf("Group() error = %v", err)
+			}
 
 			for k := range result {
 				sort.Strings(result[k])
@@ -82,7 +86,7 @@ func BenchmarkGroup(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		Group(largeInput)
+		_, _ = Group(context.Background(), largeInput)
 	}
 }
 
@@ -92,7 +96,7 @@ func FuzzNormalizeWord(f *testing.F) {
 	f.Add("Тест")
 	f.Add("123!@#")
 	f.Add("test one")
-    f.Add("   leading and trailing spaces   ")
+	f.Add("   leading and trailing spaces   ")
 
 	f.Fuzz(func(t *testing.T, word string) {
 		normalized := normalizeWord(word)

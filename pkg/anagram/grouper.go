@@ -1,6 +1,7 @@
 package anagram
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"unicode"
@@ -24,10 +25,16 @@ func normalizeWord(word string) string {
 	return string(runes)
 }
 
-func Group(words []string) map[string][]string {
+func Group(ctx context.Context, words []string) (map[string][]string, error) {
 	groups := make(map[string][]string)
 
 	for _, word := range words {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		if word == "" {
 			continue
 		}
@@ -37,5 +44,5 @@ func Group(words []string) map[string][]string {
 		groups[key] = append(groups[key], word)
 	}
 
-	return groups
+	return groups, nil
 }

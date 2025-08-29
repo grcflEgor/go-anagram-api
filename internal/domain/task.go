@@ -19,4 +19,6 @@ type Task struct {
 	CreatedAt time.Time `json:"-"`
 	ProcessingTimeMS int64 `json:"processing_time_ms"`
 	GroupsCount int `json:"groups_count"`
+
+	TraceContext map[string]string `json:"-"`
 }

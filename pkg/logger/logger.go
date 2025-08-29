@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"log"
 
 	"go.uber.org/zap"
 )
@@ -14,6 +13,6 @@ func InitLogger() {
 
 	AppLogger, err = zap.NewProduction()
 	if err != nil {
-		log.Fatalf("cant init zap logger: %v", err)
+		AppLogger.Fatal("cant init zap logger", zap.Error(err))
 	}
 }

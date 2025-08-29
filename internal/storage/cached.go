@@ -1,4 +1,4 @@
-package repository
+package storage
 
 import (
 	"context"
@@ -6,38 +6,47 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"github.com/patrickmn/go-cache"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 )
 
-var _ TaskRepository = (*CachedTaskRepository)(nil)
+var _ TaskStorage = (*CachedTaskRepository)(nil)
 
 type CachedTaskRepository struct {
-	next TaskRepository
-	c *cache.Cache
+	next  TaskStorage
+	cache *cache.Cache
 }
 
-func NewCachedTaskRepository(next TaskRepository, c *cache.Cache) *CachedTaskRepository {
+func NewCachedTaskRepository(next TaskStorage, cache *cache.Cache) *CachedTaskRepository {
 	return &CachedTaskRepository{
-		next: next,
-		c: c,
+		next:  next,
+		cache: cache,
 	}
 }
 
 func (r *CachedTaskRepository) GetByID(ctx context.Context, id string) (*domain.Task, error) {
 	l := logger.FromContext(ctx)
 
-	if task, found := r.c.Get(id); found {
+	tr := otel.Tracer("repository")
+	ctx, span := tr.Start(ctx, "CachedTaskRepository.GetByID")
+	defer span.End()
+
+	if task, found := r.cache.Get(id); found {
 		l.Info("cache HIT for task", zap.String("task_id", id))
+		span.SetAttributes(attribute.String("cache", "HIT"))
 		return task.(*domain.Task), nil
 	}
+	span.SetAttributes(attribute.String("cache", "MISS"))
 	l.Info("cache MISS for task", zap.String("task_id", id))
 
 	task, err := r.next.GetByID(ctx, id)
 	if err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 
-	r.c.Set(id, task, cache.DefaultExpiration)
+	r.cache.Set(id, task, cache.DefaultExpiration)
 
 	return task, nil
 }
@@ -48,7 +57,7 @@ func (r *CachedTaskRepository) Save(ctx context.Context, task *domain.Task) erro
 		return err
 	}
 
-	r.c.Set(task.ID, task, cache.DefaultExpiration)
+	r.cache.Set(task.ID, task, cache.DefaultExpiration)
 	l.Info("task saved and cache updated", zap.String("task_id", task.ID))
 
 	return nil

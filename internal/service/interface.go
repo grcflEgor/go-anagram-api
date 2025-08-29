@@ -1,4 +1,4 @@
-package usecase
+package service
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 )
 
-type AnagramUseCaseProvider interface {
+type AnagramServiceProvider interface {
 	CreateTask(ctx context.Context, words []string) (string, error)
 	GetTaskByID(ctx context.Context, id string) (*domain.Task, error)
 }
