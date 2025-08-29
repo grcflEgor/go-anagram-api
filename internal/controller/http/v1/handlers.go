@@ -13,7 +13,7 @@ import (
 
 
 type GroupRequest struct{
-	Words []string `json:"words" validate:"required, min=1"`
+	Words []string `json:"words" validate:"min=1,dive,required"`
 }
 
 type GroupResponse struct {

@@ -18,19 +18,31 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/usecase"
 	"github.com/grcflEgor/go-anagram-api/internal/worker"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
+	"github.com/grcflEgor/go-anagram-api/pkg/tracing"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 )
 
 const (
-	port = ":8080"
+	port          = ":8080"
 	taskQueueSize = 100
-	numWorkers = 4
+	numWorkers    = 4
+	serviceName   = "anagram-api"
 )
 
 func main() {
 	logger.InitLogger()
 	defer func() { _ = logger.AppLogger.Sync() }()
+
+	tp, err := tracing.NewTracerProvider(logger.AppLogger, serviceName)
+	if err != nil {
+		logger.AppLogger.Fatal("Failed to initialize tracing", zap.Error(err))
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			logger.AppLogger.Error("Failed to shutdown tracing", zap.Error(err))
+		}
+	}()
 
 	appCache := cache.New(5*time.Minute, 10*time.Minute)
 
@@ -50,6 +62,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(httpHandlers.LoggerMiddleware)
+	r.Use(httpHandlers.OTelMiddleware)
 	r.Use(httprate.Limit(
 		100,
 		1*time.Minute,
