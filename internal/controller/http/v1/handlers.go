@@ -6,54 +6,57 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
-	"github.com/grcflEgor/go-anagram-api/internal/usecase"
+	"github.com/grcflEgor/go-anagram-api/internal/service"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"go.uber.org/zap"
 )
 
-
-
-
 type Handlers struct {
-	useCase usecase.AnagramUseCaseProvider
-	validate *validator.Validate
+	anagramService service.AnagramServiceProvider
+	validator      *validator.Validate
 }
 
-func NewHandlers(uc usecase.AnagramUseCaseProvider, validate *validator.Validate) *Handlers {
+func NewHandlers(anagramService service.AnagramServiceProvider, validator *validator.Validate) *Handlers {
 	return &Handlers{
-		useCase: uc,
-		validate: validate,
+		anagramService: anagramService,
+		validator:      validator,
 	}
 }
 
 func (h *Handlers) GroupAnagrams(w http.ResponseWriter, r *http.Request) {
 	l := logger.FromContext(r.Context())
 
-	var req GroupRequest
+	var request GroupRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		l.Info("invalid req body")
-		http.Error(w, "invalid req body", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		l.Info("invalid request body")
+		WriteError(w, ErrInvalidRequest)
 		return
 	}
 
-	if err := h.validate.Struct(req); err != nil {
+	if err := h.validator.Struct(request); err != nil {
 		l.Info("validation failed", zap.Error(err))
-		http.Error(w, "validation failed: "+err.Error(), http.StatusBadRequest)
+		validationError := &APIError{
+			Code:    "VALIDATION_FAILED",
+			Message: "Validation failed",
+			Details: err.Error(),
+			Status:  http.StatusBadRequest,
+		}
+		WriteError(w, validationError)
 		return
 	}
 
-	taskID, err := h.useCase.CreateTask(r.Context(), req.Words)
+	taskID, err := h.anagramService.CreateTask(r.Context(), request.Words)
 	if err != nil {
 		l.Error("failed to create task", zap.Error(err))
-		http.Error(w, "failed to create task", http.StatusInternalServerError)
+		WriteError(w, ErrTaskCreationFailed)
 		return
 	}
 
-	resp := CreateTaskResponse{TaskID: taskID}
+	response := CreateTaskResponse{TaskID: taskID}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		l.Error("failed to write response", zap.Error(err))
 	}
 }
@@ -61,10 +64,10 @@ func (h *Handlers) GroupAnagrams(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	l := logger.FromContext(r.Context())
 
-	resp := map[string]string{"status": "ok"}
+	response := HealthResponse{Status: "ok"}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		l.Error("failed to write healthcheck response", zap.Error(err))
 	}
 }
@@ -75,14 +78,19 @@ func (h *Handlers) GetResult(w http.ResponseWriter, r *http.Request) {
 	taskID := chi.URLParam(r, "id")
 	if taskID == "" {
 		l.Info("task ID is required")
-		http.Error(w, "task ID is required", http.StatusBadRequest)
+		missingIDError := &APIError{
+			Code:    "MISSING_TASK_ID",
+			Message: "Task ID is required",
+			Status:  http.StatusBadRequest,
+		}
+		WriteError(w, missingIDError)
 		return
 	}
 
-	task, err := h.useCase.GetTaskByID(r.Context(), taskID)
+	task, err := h.anagramService.GetTaskByID(r.Context(), taskID)
 	if err != nil {
 		l.Error("failed to get task by id", zap.Error(err))
-		http.Error(w, err.Error(), http.StatusNotFound)
+		WriteError(w, ErrTaskNotFound)
 		return
 	}
 

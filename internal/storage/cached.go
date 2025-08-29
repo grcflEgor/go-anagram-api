@@ -1,4 +1,4 @@
-package repository
+package storage
 
 import (
 	"context"
@@ -11,17 +11,17 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ TaskRepository = (*CachedTaskRepository)(nil)
+var _ TaskStorage = (*CachedTaskRepository)(nil)
 
 type CachedTaskRepository struct {
-	next TaskRepository
-	c *cache.Cache
+	next  TaskStorage
+	cache *cache.Cache
 }
 
-func NewCachedTaskRepository(next TaskRepository, c *cache.Cache) *CachedTaskRepository {
+func NewCachedTaskRepository(next TaskStorage, cache *cache.Cache) *CachedTaskRepository {
 	return &CachedTaskRepository{
-		next: next,
-		c: c,
+		next:  next,
+		cache: cache,
 	}
 }
 
@@ -29,10 +29,10 @@ func (r *CachedTaskRepository) GetByID(ctx context.Context, id string) (*domain.
 	l := logger.FromContext(ctx)
 
 	tr := otel.Tracer("repository")
-    ctx, span := tr.Start(ctx, "CachedTaskRepository.GetByID")
-    defer span.End()
+	ctx, span := tr.Start(ctx, "CachedTaskRepository.GetByID")
+	defer span.End()
 
-	if task, found := r.c.Get(id); found {
+	if task, found := r.cache.Get(id); found {
 		l.Info("cache HIT for task", zap.String("task_id", id))
 		span.SetAttributes(attribute.String("cache", "HIT"))
 		return task.(*domain.Task), nil
@@ -46,7 +46,7 @@ func (r *CachedTaskRepository) GetByID(ctx context.Context, id string) (*domain.
 		return nil, err
 	}
 
-	r.c.Set(id, task, cache.DefaultExpiration)
+	r.cache.Set(id, task, cache.DefaultExpiration)
 
 	return task, nil
 }
@@ -57,7 +57,7 @@ func (r *CachedTaskRepository) Save(ctx context.Context, task *domain.Task) erro
 		return err
 	}
 
-	r.c.Set(task.ID, task, cache.DefaultExpiration)
+	r.cache.Set(task.ID, task, cache.DefaultExpiration)
 	l.Info("task saved and cache updated", zap.String("task_id", task.ID))
 
 	return nil

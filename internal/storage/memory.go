@@ -1,4 +1,4 @@
-package repository
+package storage
 
 import (
 	"context"
@@ -8,10 +8,10 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 )
 
-var _ TaskRepository = (*InMemoryStorage)(nil)
+var _ TaskStorage = (*InMemoryStorage)(nil)
 
-type InMemoryStorage struct{
-	mu sync.RWMutex
+type InMemoryStorage struct {
+	mu    sync.RWMutex
 	tasks map[string]*domain.Task
 }
 

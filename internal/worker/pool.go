@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
-	"github.com/grcflEgor/go-anagram-api/internal/repository"
+	"github.com/grcflEgor/go-anagram-api/internal/storage"
 	"github.com/grcflEgor/go-anagram-api/pkg/anagram"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,42 +15,44 @@ import (
 	"go.uber.org/zap"
 )
 
-const processingTimeout = 30 * time.Second
+const ProcessingTimeout = 30 * time.Second
 
 type Pool struct {
-	repo repository.TaskRepository
+	storage   storage.TaskStorage
 	taskQueue chan *domain.Task
-	logger *zap.Logger
-	wg sync.WaitGroup
+	logger    *zap.Logger
+	wg        sync.WaitGroup
+	processingTimeout time.Duration
 }
 
-func NewPool(repo repository.TaskRepository, taskQueue chan *domain.Task, logger *zap.Logger) *Pool {
+func NewPool(storage storage.TaskStorage, taskQueue chan *domain.Task, logger *zap.Logger, processingTimeout time.Duration) *Pool {
 	return &Pool{
-		repo: repo,
+		storage:   storage,
 		taskQueue: taskQueue,
-		logger: logger,
+		logger:    logger,
+		processingTimeout: processingTimeout,
 	}
 }
 
-func (p *Pool) Run(numWorkers int) {
+func (pool *Pool) Run(numWorkers int) {
 	for i := 0; i < numWorkers; i++ {
-		p.wg.Add(1)
-		go p.worker(i + 1)
+		pool.wg.Add(1)
+		go pool.worker(i + 1)
 	}
 }
 
-func (p *Pool) worker(id int) {
-	defer p.wg.Done()
+func (pool *Pool) worker(id int) {
+	defer pool.wg.Done()
 
-	workerLog := p.logger.With(zap.Int("worker_id", id))
+	workerLog := pool.logger.With(zap.Int("worker_id", id))
 	workerLog.Info("worker started")
 	tr := otel.Tracer("worker")
 
-	for task := range p.taskQueue {
+	for task := range pool.taskQueue {
 		func(task *domain.Task) {
 			parentCtx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.MapCarrier(task.TraceContext))
 
-			taskCtx, cancel := context.WithTimeout(parentCtx, processingTimeout)
+			taskCtx, cancel := context.WithTimeout(parentCtx, pool.processingTimeout)
 			defer cancel()
 
 			spanCtx, span := tr.Start(taskCtx, "process_task")
@@ -94,7 +96,7 @@ func (p *Pool) worker(id int) {
 				span.SetAttributes(attribute.Int("groups_count", len(result)))
 			}
 
-			if err := p.repo.Save(context.Background(), task); err != nil {
+			if err := pool.storage.Save(context.Background(), task); err != nil {
 				taskLog.Error("failed to save completed task", zap.String("status", string(task.Status)), zap.Error(err))
 				span.RecordError(err)
 			}
@@ -103,7 +105,7 @@ func (p *Pool) worker(id int) {
 	}
 }
 
-func (p *Pool) Stop() {
-	close(p.taskQueue)
-	p.wg.Wait()
+func (pool *Pool) Stop() {
+	close(pool.taskQueue)
+	pool.wg.Wait()
 }
