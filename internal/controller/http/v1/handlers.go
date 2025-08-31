@@ -1,11 +1,14 @@
 package v1
 
 import (
+	"bufio"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/grcflEgor/go-anagram-api/internal/config"
 	"github.com/grcflEgor/go-anagram-api/internal/service"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"go.uber.org/zap"
@@ -14,12 +17,14 @@ import (
 type Handlers struct {
 	anagramService service.AnagramServiceProvider
 	validator      *validator.Validate
+	config         *config.Config
 }
 
-func NewHandlers(anagramService service.AnagramServiceProvider, validator *validator.Validate) *Handlers {
+func NewHandlers(anagramService service.AnagramServiceProvider, validator *validator.Validate, config *config.Config) *Handlers {
 	return &Handlers{
 		anagramService: anagramService,
 		validator:      validator,
+		config:         config,
 	}
 }
 
@@ -38,7 +43,7 @@ func (h *Handlers) GroupAnagrams(w http.ResponseWriter, r *http.Request) {
 		l.Info("validation failed", zap.Error(err))
 		validationError := &APIError{
 			Code:    "VALIDATION_FAILED",
-			Message: "Validation failed",
+			Message: "validation failed",
 			Details: err.Error(),
 			Status:  http.StatusBadRequest,
 		}
@@ -80,7 +85,7 @@ func (h *Handlers) GetResult(w http.ResponseWriter, r *http.Request) {
 		l.Info("task ID is required")
 		missingIDError := &APIError{
 			Code:    "MISSING_TASK_ID",
-			Message: "Task ID is required",
+			Message: "task ID is required",
 			Status:  http.StatusBadRequest,
 		}
 		WriteError(w, missingIDError)
@@ -98,4 +103,60 @@ func (h *Handlers) GetResult(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(task); err != nil {
 		l.Error("failed to write get result", zap.Error(err))
 	}
+}
+
+func (h *Handlers) UploadFile(w http.ResponseWriter, r *http.Request) {
+	l := logger.FromContext(r.Context())
+	ctx := r.Context()
+
+	r.Body = http.MaxBytesReader(w, r.Body, h.config.Upload.MaxFileSize)
+	if err := r.ParseMultipartForm(h.config.Upload.MaxFileSize); err != nil {
+		l.Error("failed to parse multipart form", zap.Error(err))
+		WriteError(w, ErrInvalidRequest)
+		return
+	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		l.Error("failed to get file", zap.Error(err))
+		WriteError(w, ErrInvalidRequest)
+		return
+	}
+	defer file.Close()
+
+	var words []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		wordsInLine := strings.Fields(line)
+		words = append(words, wordsInLine...)
+	}
+
+	if err := scanner.Err(); err != nil {
+		l.Error("failed to scan file", zap.Error(err))
+		WriteError(w, ErrInvalidRequest)
+		return
+	}
+
+	if len(words) == 0 {
+		l.Info("no words found in file")
+		WriteError(w, ErrInvalidRequest)
+		return
+	}
+
+	taskID, err := h.anagramService.CreateTask(ctx, words)
+	if err != nil {
+		l.Error("failed to create task", zap.Error(err))
+		WriteError(w, ErrTaskCreationFailed)
+		return
+	}
+
+	resp := CreateTaskResponse{TaskID: taskID}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		l.Error("failed to write response", zap.Error(err))
+	}
+
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/go-playground/validator/v10"
+	"github.com/grcflEgor/go-anagram-api/internal/config"
 	httpHandlers "github.com/grcflEgor/go-anagram-api/internal/controller/http/v1"
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 	"github.com/grcflEgor/go-anagram-api/internal/service"
@@ -12,7 +13,7 @@ import (
 )
 
 type Dependencies struct {
-	Config         *Config
+	Config         *config.Config
 	Cache          *cache.Cache
 	Validator      *validator.Validate
 	TaskStorage    storage.TaskStorage
@@ -22,7 +23,7 @@ type Dependencies struct {
 	Handlers       *httpHandlers.Handlers
 }
 
-func NewDependencies(config *Config) *Dependencies {
+func NewDependencies(config *config.Config) *Dependencies {
 	appCache := cache.New(config.Cache.DefaultExpiration, config.Cache.CleanupInterval)
 
 	appValidator := validator.New()
@@ -36,7 +37,7 @@ func NewDependencies(config *Config) *Dependencies {
 
 	workerPool := worker.NewPool(cachedTaskRepository, taskQueue, logger.AppLogger, config.Processing.Timeout)
 
-	handlers := httpHandlers.NewHandlers(anagramService, appValidator)
+	handlers := httpHandlers.NewHandlers(anagramService, appValidator, config)
 
 	return &Dependencies{
 		Config:         config,

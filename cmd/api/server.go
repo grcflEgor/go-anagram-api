@@ -7,18 +7,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
+	"github.com/grcflEgor/go-anagram-api/internal/config"
 	httpHandlers "github.com/grcflEgor/go-anagram-api/internal/controller/http/v1"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"go.uber.org/zap"
 )
 
 type Server struct {
-	config     *Config
+	config     *config.Config
 	handlers   *httpHandlers.Handlers
 	httpServer *http.Server
 }
 
-func NewServer(config *Config, handlers *httpHandlers.Handlers) *Server {
+func NewServer(config *config.Config, handlers *httpHandlers.Handlers) *Server {
 	router := setupRouter(config, handlers)
 
 	server := &http.Server{
@@ -36,7 +37,7 @@ func NewServer(config *Config, handlers *httpHandlers.Handlers) *Server {
 	}
 }
 
-func setupRouter(config *Config, handlers *httpHandlers.Handlers) *chi.Mux {
+func setupRouter(config *config.Config, handlers *httpHandlers.Handlers) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(middleware.Recoverer)
@@ -52,6 +53,7 @@ func setupRouter(config *Config, handlers *httpHandlers.Handlers) *chi.Mux {
 		r.Get("/health", handlers.HealthCheck)
 		r.Post("/anagrams/group", handlers.GroupAnagrams)
 		r.Get("/anagrams/groups/{id}", handlers.GetResult)
+		r.Post("/anagrams/upload", handlers.UploadFile)
 	})
 
 	return router

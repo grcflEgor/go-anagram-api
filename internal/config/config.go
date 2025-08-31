@@ -1,7 +1,8 @@
-package main
+package config
 
 import (
 	"time"
+
 )
 
 type Config struct {
@@ -38,6 +39,11 @@ type Config struct {
 	Graceful struct {
 		ShutdownTimeout time.Duration `env:"GRACEFUL_SHUTDOWN_TIMEOUT" envDefault:"30s"`
 	}
+
+	Upload struct {
+		MaxFileSize  int64  `env:"UPLOAD_MAX_FILE_SIZE" envDefault:"20MB"`
+		AllowedTypes string `env:"UPLOAD_ALLOWED_TYPES" envDefault:"application/json,application/csv,text/plain"`
+	}
 }
 
 func DefaultConfig() *Config {
@@ -53,6 +59,8 @@ func DefaultConfig() *Config {
 	config.RateLimit.Requests = 100
 	config.RateLimit.Window = 1 * time.Minute
 	config.Graceful.ShutdownTimeout = 30 * time.Second
+	config.Upload.MaxFileSize = 20 * 1024 * 1024
+	config.Upload.AllowedTypes = "application/json,application/csv,text/plain"
 
 	return config
 }

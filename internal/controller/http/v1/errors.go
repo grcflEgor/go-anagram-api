@@ -31,31 +31,31 @@ func WriteError(w http.ResponseWriter, err *APIError) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.Status)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 var (
 	ErrInvalidRequest = &APIError{
 		Code:    "INVALID_REQUEST",
-		Message: "Invalid request data",
+		Message: "invalid request data",
 		Status:  http.StatusBadRequest,
 	}
 
 	ErrTaskNotFound = &APIError{
 		Code:    "TASK_NOT_FOUND",
-		Message: "Task not found",
+		Message: "task not found",
 		Status:  http.StatusNotFound,
 	}
 
 	ErrInternalServer = &APIError{
 		Code:    "INTERNAL_SERVER_ERROR",
-		Message: "Internal server error",
+		Message: "internal server error",
 		Status:  http.StatusInternalServerError,
 	}
 
 	ErrTaskCreationFailed = &APIError{
 		Code:    "TASK_CREATION_FAILED",
-		Message: "Failed to create task",
+		Message: "failed to create task",
 		Status:  http.StatusInternalServerError,
 	}
 )
