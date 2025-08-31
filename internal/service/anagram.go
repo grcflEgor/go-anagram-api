@@ -16,12 +16,14 @@ var _ AnagramServiceProvider = (*AnagramService)(nil)
 type AnagramService struct {
 	storage   storage.TaskStorage
 	taskQueue chan<- *domain.Task
+	taskStats *TaskStats
 }
 
-func NewAnagramService(storage storage.TaskStorage, taskQueue chan<- *domain.Task) *AnagramService {
+func NewAnagramService(storage storage.TaskStorage, taskQueue chan<- *domain.Task, taskStats *TaskStats) *AnagramService {
 	return &AnagramService{
 		storage:   storage,
 		taskQueue: taskQueue,
+		taskStats: taskStats,
 	}
 }
 
@@ -46,6 +48,7 @@ func (as *AnagramService) CreateTask(ctx context.Context, words []string) (strin
 	}
 
 	as.taskQueue <- task
+	as.taskStats.IncrementTotalTasks()
 	return task.ID, nil
 }
 
@@ -59,4 +62,15 @@ func (as *AnagramService) GetTaskByID(ctx context.Context, id string) (*domain.T
 		span.RecordError(err)
 	}
 	return task, err
+}
+
+func (as *AnagramService) ClearCache(ctx context.Context) error {
+	tr := otel.Tracer("usecase")
+	ctx, span := tr.Start(ctx, "ClearCache")
+	defer span.End()
+
+	if flusher, ok := as.storage.(interface {Flush(ctx context.Context) error}); ok {
+		return flusher.Flush(ctx)
+	}
+	return nil
 }

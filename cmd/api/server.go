@@ -54,6 +54,8 @@ func setupRouter(config *config.Config, handlers *httpHandlers.Handlers) *chi.Mu
 		r.Post("/anagrams/group", handlers.GroupAnagrams)
 		r.Get("/anagrams/groups/{id}", handlers.GetResult)
 		r.Post("/anagrams/upload", handlers.UploadFile)
+		r.Get("/anagrams/stats", handlers.GetStats)
+		r.Delete("/anagrams/cache", handlers.ClearCache)
 	})
 
 	return router

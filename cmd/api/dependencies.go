@@ -21,6 +21,7 @@ type Dependencies struct {
 	WorkerPool     *worker.Pool
 	TaskQueue      chan *domain.Task
 	Handlers       *httpHandlers.Handlers
+	TaskStats      *service.TaskStats
 }
 
 func NewDependencies(config *config.Config) *Dependencies {
@@ -33,11 +34,13 @@ func NewDependencies(config *config.Config) *Dependencies {
 
 	taskQueue := make(chan *domain.Task, config.Task.QueueSize)
 
-	anagramService := service.NewAnagramService(cachedTaskRepository, taskQueue)
+	taskStats := service.NewTaskStats()
 
-	workerPool := worker.NewPool(cachedTaskRepository, taskQueue, logger.AppLogger, config.Processing.Timeout)
+	anagramService := service.NewAnagramService(cachedTaskRepository, taskQueue, taskStats)
 
-	handlers := httpHandlers.NewHandlers(anagramService, appValidator, config)
+	workerPool := worker.NewPool(cachedTaskRepository, taskQueue, logger.AppLogger, config.Processing.Timeout, taskStats)
+
+	handlers := httpHandlers.NewHandlers(anagramService, appValidator, config, taskStats)
 
 	return &Dependencies{
 		Config:         config,
@@ -48,6 +51,7 @@ func NewDependencies(config *config.Config) *Dependencies {
 		WorkerPool:     workerPool,
 		TaskQueue:      taskQueue,
 		Handlers:       handlers,
+		TaskStats:      taskStats,
 	}
 }
 

@@ -53,12 +53,32 @@ func (r *CachedTaskRepository) GetByID(ctx context.Context, id string) (*domain.
 
 func (r *CachedTaskRepository) Save(ctx context.Context, task *domain.Task) error {
 	l := logger.FromContext(ctx)
+
+	tr := otel.Tracer("repository")
+	ctx, span := tr.Start(ctx, "CachedTaskRepository.Save")
+	defer span.End()
+
 	if err := r.next.Save(ctx, task); err != nil {
+		span.RecordError(err)
 		return err
 	}
 
 	r.cache.Set(task.ID, task, cache.DefaultExpiration)
 	l.Info("task saved and cache updated", zap.String("task_id", task.ID))
+
+	return nil
+}
+
+func (r *CachedTaskRepository) Flush(ctx context.Context) error {
+	l := logger.FromContext(ctx)
+
+	tr := otel.Tracer("repository")
+	_, span := tr.Start(ctx, "CachedTaskRepository.Flush")
+	defer span.End()
+
+	r.cache.Flush()
+
+	l.Info("cache flushed")
 
 	return nil
 }

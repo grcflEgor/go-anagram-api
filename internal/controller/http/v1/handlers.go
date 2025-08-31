@@ -2,6 +2,7 @@ package v1
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -18,13 +19,15 @@ type Handlers struct {
 	anagramService service.AnagramServiceProvider
 	validator      *validator.Validate
 	config         *config.Config
+	stats      *service.TaskStats
 }
 
-func NewHandlers(anagramService service.AnagramServiceProvider, validator *validator.Validate, config *config.Config) *Handlers {
+func NewHandlers(anagramService service.AnagramServiceProvider, validator *validator.Validate, config *config.Config, stats *service.TaskStats) *Handlers {
 	return &Handlers{
 		anagramService: anagramService,
 		validator:      validator,
 		config:         config,
+		stats:      stats,
 	}
 }
 
@@ -159,4 +162,38 @@ func (h *Handlers) UploadFile(w http.ResponseWriter, r *http.Request) {
 		l.Error("failed to write response", zap.Error(err))
 	}
 
+}
+
+func (h *Handlers) GetStats(w http.ResponseWriter, r *http.Request) {
+	l := logger.FromContext(r.Context())
+
+	stats := h.stats.Get()
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		l.Error("failed to write stats", zap.Error(err))
+		WriteError(w, ErrInternalServer)
+		return
+	}
+}
+
+type cacheCleaner interface {
+	ClearCache(ctx context.Context) error
+}
+
+func (h *Handlers) ClearCache(w http.ResponseWriter, r *http.Request) {
+	l := logger.FromContext(r.Context())
+
+	if flusher, ok := h.anagramService.(cacheCleaner); ok {
+		if err := flusher.ClearCache(r.Context()); err != nil {
+			l.Error("failed to clear cache", zap.Error(err))
+			WriteError(w, ErrInternalServer)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	WriteError(w, ErrInternalServer)
 }

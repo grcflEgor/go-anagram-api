@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
+	"github.com/grcflEgor/go-anagram-api/internal/service"
 	"github.com/grcflEgor/go-anagram-api/internal/storage"
 	"github.com/grcflEgor/go-anagram-api/pkg/anagram"
 	"go.opentelemetry.io/otel"
@@ -23,14 +24,16 @@ type Pool struct {
 	logger    *zap.Logger
 	wg        sync.WaitGroup
 	processingTimeout time.Duration
+	stats *service.TaskStats
 }
 
-func NewPool(storage storage.TaskStorage, taskQueue chan *domain.Task, logger *zap.Logger, processingTimeout time.Duration) *Pool {
+func NewPool(storage storage.TaskStorage, taskQueue chan *domain.Task, logger *zap.Logger, processingTimeout time.Duration, stats *service.TaskStats) *Pool {
 	return &Pool{
 		storage:   storage,
 		taskQueue: taskQueue,
 		logger:    logger,
 		processingTimeout: processingTimeout,
+		stats: stats,
 	}
 }
 
@@ -73,10 +76,12 @@ func (pool *Pool) worker(id int) {
 					taskLog.Warn("task processing timeout")
 					task.Status = domain.StatusFailed
 					task.Error = "task processing timeout"
+					pool.stats.IncrementFailedTasks()
 				} else {
 					taskLog.Error("task processing failed", zap.Error(err))
 					task.Status = domain.StatusFailed
 					task.Error = err.Error()
+					pool.stats.IncrementFailedTasks()
 				}
 				span.RecordError(err)
 				span.SetAttributes(attribute.String("status", "failed"))
@@ -91,7 +96,8 @@ func (pool *Pool) worker(id int) {
 				task.Result = result
 				task.ProcessingTimeMS = processingTime
 				task.GroupsCount = len(result)
-
+				pool.stats.IncrementCompletedTasks()
+				
 				span.SetAttributes(attribute.String("status", "completed"))
 				span.SetAttributes(attribute.Int("groups_count", len(result)))
 			}
