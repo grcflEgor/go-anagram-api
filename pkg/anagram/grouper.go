@@ -7,12 +7,18 @@ import (
 	"unicode"
 )
 
-func normalizeWord(word string) string {
-	lowerWord := strings.ToLower(word)
+func normalizeWord(word string, caseSensitive bool) string {
+	var base string
 
-	runes := make([]rune, 0, len(lowerWord))
+	if caseSensitive {
+		base = word
+	} else {
+		base = strings.ToLower(word)
+	}
 
-	for _, r := range lowerWord {
+	runes := make([]rune, 0, len(base))
+
+	for _, r := range base {
 		if !unicode.IsSpace(r) {
 			runes = append(runes, r)
 		}
@@ -25,7 +31,7 @@ func normalizeWord(word string) string {
 	return string(runes)
 }
 
-func Group(ctx context.Context, words []string) (map[string][]string, error) {
+func Group(ctx context.Context, words []string, caseSensitive bool) (map[string][]string, error) {
 	groups := make(map[string][]string)
 
 	for _, word := range words {
@@ -39,7 +45,7 @@ func Group(ctx context.Context, words []string) (map[string][]string, error) {
 			continue
 		}
 
-		key := normalizeWord(word)
+		key := normalizeWord(word, caseSensitive)
 		
 		groups[key] = append(groups[key], word)
 	}

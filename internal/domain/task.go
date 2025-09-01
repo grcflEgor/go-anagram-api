@@ -14,6 +14,7 @@ type Task struct {
 	ID string `json:"task_id"`
 	Status TaskStatus `json:"status"`
 	Words []string `json:"-"`
+	CaseSensitive bool `json:"-"`
 	Result [][]string `json:"result,omitempty"`
 	Error string `json:"error,omitempty"`
 	CreatedAt time.Time `json:"-"`

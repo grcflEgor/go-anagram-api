@@ -54,7 +54,7 @@ func (h *Handlers) GroupAnagrams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskID, err := h.anagramService.CreateTask(r.Context(), request.Words)
+	taskID, err := h.anagramService.CreateTask(r.Context(), request.Words, request.CaseSensitive)
 	if err != nil {
 		l.Error("failed to create task", zap.Error(err))
 		WriteError(w, ErrTaskCreationFailed)
@@ -147,7 +147,14 @@ func (h *Handlers) UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskID, err := h.anagramService.CreateTask(ctx, words)
+	caseSensitive := false
+	if values := r.MultipartForm.Value["case_sensitive"]; len(values) > 0 {
+		if strings.ToLower(values[0]) == "true" {
+			caseSensitive = true
+		}
+	}
+
+	taskID, err := h.anagramService.CreateTask(ctx, words, caseSensitive)
 	if err != nil {
 		l.Error("failed to create task", zap.Error(err))
 		WriteError(w, ErrTaskCreationFailed)

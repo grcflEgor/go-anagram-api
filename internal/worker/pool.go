@@ -67,7 +67,7 @@ func (pool *Pool) worker(id int) {
 
 			start := time.Now()
 
-			grouped, err := anagram.Group(spanCtx, task.Words)
+			grouped, err := anagram.Group(spanCtx, task.Words, task.CaseSensitive)
 			processingTime := time.Since(start).Milliseconds()
 			span.SetAttributes(attribute.Int64("processing_ms", processingTime))
 

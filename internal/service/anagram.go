@@ -27,7 +27,7 @@ func NewAnagramService(storage storage.TaskStorage, taskQueue chan<- *domain.Tas
 	}
 }
 
-func (as *AnagramService) CreateTask(ctx context.Context, words []string) (string, error) {
+func (as *AnagramService) CreateTask(ctx context.Context, words []string, caseSensitive bool) (string, error) {
 	tr := otel.Tracer("usecase")
 	ctx, span := tr.Start(ctx, "CreateTask")
 	defer span.End()
@@ -36,6 +36,7 @@ func (as *AnagramService) CreateTask(ctx context.Context, words []string) (strin
 		ID:           uuid.New().String(),
 		Status:       domain.StatusProcessing,
 		Words:        words,
+		CaseSensitive: caseSensitive,
 		CreatedAt:    time.Now(),
 		TraceContext: make(map[string]string),
 	}
