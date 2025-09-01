@@ -44,6 +44,7 @@ type Config struct {
 	Upload struct {
 		MaxFileSize  int64  `env:"UPLOAD_MAX_FILE_SIZE" envDefault:"20971520"`
 		AllowedTypes string `env:"UPLOAD_ALLOWED_TYPES" envDefault:"application/json,application/csv,text/plain"`
+		BatchSize int `env:"UPLOAD_BATCH_SIZE" envDefault:"10000"`
 	}
 }
 
