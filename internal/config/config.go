@@ -2,6 +2,7 @@ package config
 
 import (
 	"time"
+	"github.com/caarlos0/env/v10"
 
 )
 
@@ -41,26 +42,17 @@ type Config struct {
 	}
 
 	Upload struct {
-		MaxFileSize  int64  `env:"UPLOAD_MAX_FILE_SIZE" envDefault:"20MB"`
+		MaxFileSize  int64  `env:"UPLOAD_MAX_FILE_SIZE" envDefault:"20971520"`
 		AllowedTypes string `env:"UPLOAD_ALLOWED_TYPES" envDefault:"application/json,application/csv,text/plain"`
 	}
 }
 
-func DefaultConfig() *Config {
+func LoadConfig() (*Config, error) {
 	config := &Config{}
 
-	config.Server.Port = ":8080"
-	config.Task.QueueSize = 100
-	config.Worker.Count = 4
-	config.Cache.DefaultExpiration = 5 * time.Minute
-	config.Cache.CleanupInterval = 10 * time.Minute
-	config.Service.Name = "anagram-api"
-	config.Processing.Timeout = 30 * time.Second
-	config.RateLimit.Requests = 100
-	config.RateLimit.Window = 1 * time.Minute
-	config.Graceful.ShutdownTimeout = 30 * time.Second
-	config.Upload.MaxFileSize = 20 * 1024 * 1024
-	config.Upload.AllowedTypes = "application/json,application/csv,text/plain"
+	if err := env.Parse(config); err != nil {
+		return nil, err
+	}
 
-	return config
+	return config, nil
 }

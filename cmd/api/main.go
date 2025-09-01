@@ -13,7 +13,10 @@ func main() {
 	logger.InitLogger()
 	defer func() { _ = logger.AppLogger.Sync() }()
 
-	config := config.DefaultConfig()
+	config, err := config.LoadConfig()
+	if err != nil {
+		logger.AppLogger.Fatal("failed to load config", zap.Error(err))
+	}
 
 	tracerProvider, err := tracing.NewTracerProvider(logger.AppLogger, config.Service.Name)
 	if err != nil {
