@@ -46,7 +46,7 @@ func Group(ctx context.Context, words []string, caseSensitive bool) (map[string]
 		}
 
 		key := normalizeWord(word, caseSensitive)
-		
+
 		groups[key] = append(groups[key], word)
 	}
 

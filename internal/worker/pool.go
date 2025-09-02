@@ -20,27 +20,27 @@ import (
 )
 
 type Pool struct {
-	storage   storage.TaskStorage
-	taskQueue chan *domain.Task
-	logger    *zap.Logger
-	wg        sync.WaitGroup
+	storage           storage.TaskStorage
+	taskQueue         chan *domain.Task
+	logger            *zap.Logger
+	wg                sync.WaitGroup
 	processingTimeout time.Duration
-	stats *service.TaskStats
-	batchSize int
+	stats             *service.TaskStats
+	batchSize         int
 }
 
 func NewPool(storage storage.TaskStorage, taskQueue chan *domain.Task, logger *zap.Logger, processingTimeout time.Duration, stats *service.TaskStats, batchSize int) *Pool {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	
+
 	return &Pool{
-		storage:   storage,
-		taskQueue: taskQueue,
-		logger:    logger,
+		storage:           storage,
+		taskQueue:         taskQueue,
+		logger:            logger,
 		processingTimeout: processingTimeout,
-		stats: stats,
-		batchSize: batchSize,
+		stats:             stats,
+		batchSize:         batchSize,
 	}
 }
 
@@ -75,7 +75,7 @@ func (pool *Pool) worker(id int) {
 			start := time.Now()
 
 			var grouped map[string][]string
-			var err error 
+			var err error
 
 			if task.FilePath != "" {
 				grouped, err = pool.processFile(spanCtx, task.FilePath, task.CaseSensitive)
@@ -115,7 +115,7 @@ func (pool *Pool) worker(id int) {
 				task.ProcessingTimeMS = processingTime
 				task.GroupsCount = len(result)
 				pool.stats.IncrementCompletedTasks()
-				
+
 				span.SetAttributes(attribute.String("status", "completed"))
 				span.SetAttributes(attribute.Int("groups_count", len(result)))
 			}
@@ -134,7 +134,6 @@ func (pool *Pool) Stop() {
 	pool.wg.Wait()
 }
 
-
 func (pool *Pool) processFile(ctx context.Context, filePath string, caseSensitive bool) (map[string][]string, error) {
 	l := logger.FromContext(ctx)
 
@@ -144,7 +143,7 @@ func (pool *Pool) processFile(ctx context.Context, filePath string, caseSensitiv
 
 	l.Info("processing file", zap.String("file_path", filePath))
 	span.SetAttributes(attribute.String("file_path", filePath))
-	
+
 	file, err := os.Open(filePath)
 	if err != nil {
 		l.Error("failed to open file", zap.Error(err))

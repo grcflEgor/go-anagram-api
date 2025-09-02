@@ -61,7 +61,7 @@ func OTelMiddleware(next http.Handler) http.Handler {
 		)
 
 		if ww.Status() >= 400 {
-            span.SetStatus(codes.Error, http.StatusText(ww.Status()))
-        }
-    })
+			span.SetStatus(codes.Error, http.StatusText(ww.Status()))
+		}
+	})
 }

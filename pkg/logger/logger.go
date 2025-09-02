@@ -1,10 +1,8 @@
 package logger
 
 import (
-
 	"go.uber.org/zap"
 )
-
 
 var AppLogger *zap.Logger
 
