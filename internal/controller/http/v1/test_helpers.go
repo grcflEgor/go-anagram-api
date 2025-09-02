@@ -16,12 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 func setupTestHandlers() (*mocks.MockAnagramService, *mocks.MockTaskStats, *Handlers) {
 	mockService := &mocks.MockAnagramService{}
 	validator := validator.New()
 	config := &config.Config{}
-	config.Upload.MaxFileSize = 100 * 1024 * 1024 
+	config.Upload.MaxFileSize = 100 * 1024 * 1024
 	stats := &mocks.MockTaskStats{}
 	handlers := NewHandlers(mockService, validator, config, stats)
 	return mockService, stats, handlers
@@ -45,13 +44,28 @@ func createMultipartRequest(filename, content string, caseSensitive bool) *http.
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	part, _ := writer.CreateFormFile("file", filename)
-	part.Write([]byte(content))
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		panic(err)
+	}
+	_, err = part.Write([]byte(content))
+	if err != nil {
+		panic(err)
+	}
 
-	caseSensitivePart, _ := writer.CreateFormField("case_sensitive")
-	caseSensitivePart.Write([]byte(fmt.Sprintf("%t", caseSensitive)))
+	caseSensitivePart, err := writer.CreateFormField("case_sensitive")
+	if err != nil {
+		panic(err)
+	}
+	_, err = caseSensitivePart.Write([]byte(fmt.Sprintf("%t", caseSensitive)))
+	if err != nil {
+		panic(err)
+	}
 
-	writer.Close()
+	err = writer.Close()
+	if err != nil {
+		panic(err)
+	}
 
 	req := httptest.NewRequest("POST", "/api/v1/anagrams/upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())

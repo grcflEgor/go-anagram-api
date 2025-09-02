@@ -12,7 +12,6 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/test/integration/mocks"
 	"go.uber.org/zap"
 )
- 
 
 func TestMerge(t *testing.T) {
 	target := map[string][]string{
@@ -43,7 +42,6 @@ func TestStop(t *testing.T) {
 
 	pool.Stop()
 }
-
 
 func TestWorker_ProcessWordsTask_Success(t *testing.T) {
 	storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task)}
@@ -112,7 +110,10 @@ func TestWorker_ProcessFileTask_Success(t *testing.T) {
 
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "words.txt")
-	os.WriteFile(filePath, []byte("кот\nток\nрост\nторс\n"), 0644)
+	err := os.WriteFile(filePath, []byte("кот\nток\nрост\nторс\n"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
 
 	pool := NewPool(storage, taskQueue, logger, time.Second, stats, 2)
 	go pool.Run(1)
@@ -139,10 +140,10 @@ func TestWorker_ProcessFileTask_Success(t *testing.T) {
 }
 
 func TestWorker_TaskTimeout(t *testing.T) {
-		t.Parallel()
-		storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task)}
-		taskQueue := make(chan *domain.Task, 1)
-		logger := zap.NewNop()
+	t.Parallel()
+	storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task)}
+	taskQueue := make(chan *domain.Task, 1)
+	logger := zap.NewNop()
 	stats := service.NewTaskStats()
 
 	pool := NewPool(storage, taskQueue, logger, 1*time.Nanosecond, stats, 10)

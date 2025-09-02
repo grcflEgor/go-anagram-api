@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 func writeMetrics(t *testing.T, testName string, duration time.Duration, processingMS int64, wordsCount int, groupsCount int) {
 	t.Helper()
 
@@ -74,7 +73,6 @@ func writeMetrics(t *testing.T, testName string, duration time.Duration, process
 		))
 	}
 }
-
 
 func TestLargeFileStreamingProcessing(t *testing.T) {
 	logger.InitLogger()
@@ -139,7 +137,8 @@ func TestLargeFileStreamingProcessing(t *testing.T) {
 		req, _ := http.NewRequest("POST", server.URL+"/api/v1/anagrams/upload", io.NopCloser(strings.NewReader(body.String())))
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 
-		resp, _ := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+		resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+		require.NoError(t, err)
 		defer resp.Body.Close()
 		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 
@@ -222,7 +221,6 @@ func TestLargeFileStreamingProcessing(t *testing.T) {
 		writeMetrics(t, "ResultsCorrectnessTest", time.Duration(task.ProcessingTimeMS)*time.Millisecond, task.ProcessingTimeMS, len(task.Words), task.GroupsCount)
 	})
 }
-
 
 func createLargeTestFile(filePath string, wordCount int) error {
 	file, _ := os.Create(filePath)
