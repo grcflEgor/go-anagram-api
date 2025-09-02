@@ -1,25 +1,37 @@
 package v1
 
+// GroupResponse представляет ответ с результатом группировки анаграмм
 type GroupResponse struct {
-	TaskID         string     `json:"task_id"`
-	Status         string     `json:"status"`
-	Result         [][]string `json:"result"`
-	ProcessingTime int64      `json:"processing_time_ms"`
-	GroupsCount    int        `json:"groups_count"`
+	// Уникальный идентификатор задачи
+	TaskID string `json:"task_id" example:"task-123"`
+	// Статус выполнения задачи
+	Status string `json:"status" example:"completed"`
+	// Результат группировки анаграмм
+	Result [][]string `json:"result"`
+	// Время обработки в миллисекундах
+	ProcessingTime int64 `json:"processing_time_ms" example:"150"`
+	// Количество групп анаграмм
+	GroupsCount int `json:"groups_count" example:"2"`
 }
 
+// CreateTaskResponse представляет ответ при создании задачи
 type CreateTaskResponse struct {
-	TaskID string `json:"task_id"`
+	// Уникальный идентификатор созданной задачи
+	TaskID string `json:"task_id" example:"task-123"`
 }
 
+// HealthResponse представляет ответ проверки здоровья сервиса
 type HealthResponse struct {
-	Status string `json:"status"`
+	// Статус сервиса
+	Status string `json:"status" example:"ok"`
 }
 
+// StatsResponse представляет статистику по задачам
 type StatsResponse struct {
-	TotalTasks     int64 `json:"total_tasks"`
-	CompletedTasks int64 `json:"completed_tasks"`
-	FailedTasks    int64 `json:"failed_tasks"`
-	CacheHits      int64 `json:"cache_hits"`
-	CacheMisses    int64 `json:"cache_misses"`
+	// Общее количество задач
+	TotalTasks int64 `json:"total_tasks" example:"100"`
+	// Количество завершенных задач
+	CompletedTasks int64 `json:"completed_tasks" example:"85"`
+	// Количество неудачных задач
+	FailedTasks int64 `json:"failed_tasks" example:"5"`
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/go-playground/validator/v10"
+	"github.com/grcflEgor/go-anagram-api/internal/config"
 	httpHandlers "github.com/grcflEgor/go-anagram-api/internal/controller/http/v1"
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 	"github.com/grcflEgor/go-anagram-api/internal/service"
@@ -12,7 +13,7 @@ import (
 )
 
 type Dependencies struct {
-	Config         *Config
+	Config         *config.Config
 	Cache          *cache.Cache
 	Validator      *validator.Validate
 	TaskStorage    storage.TaskStorage
@@ -20,33 +21,37 @@ type Dependencies struct {
 	WorkerPool     *worker.Pool
 	TaskQueue      chan *domain.Task
 	Handlers       *httpHandlers.Handlers
+	TaskStats      *service.TaskStats
 }
 
-func NewDependencies(config *Config) *Dependencies {
+func NewDependencies(config *config.Config) *Dependencies {
 	appCache := cache.New(config.Cache.DefaultExpiration, config.Cache.CleanupInterval)
 
 	appValidator := validator.New()
 
 	inMemoryStorage := storage.NewInMemoryStorage()
-	cachedTaskRepository := storage.NewCachedTaskRepository(inMemoryStorage, appCache)
+	cachedTaskStorage := storage.NewCachedTaskStorage(inMemoryStorage, appCache)
 
 	taskQueue := make(chan *domain.Task, config.Task.QueueSize)
 
-	anagramService := service.NewAnagramService(cachedTaskRepository, taskQueue)
+	taskStats := service.NewTaskStats()
 
-	workerPool := worker.NewPool(cachedTaskRepository, taskQueue, logger.AppLogger, config.Processing.Timeout)
+	anagramService := service.NewAnagramService(cachedTaskStorage, taskQueue, taskStats, config.Upload.BatchSize)
 
-	handlers := httpHandlers.NewHandlers(anagramService, appValidator)
+	workerPool := worker.NewPool(cachedTaskStorage, taskQueue, logger.AppLogger, config.Processing.Timeout, taskStats, config.Upload.BatchSize)
+
+	handlers := httpHandlers.NewHandlers(anagramService, appValidator, config, taskStats)
 
 	return &Dependencies{
 		Config:         config,
 		Cache:          appCache,
 		Validator:      appValidator,
-		TaskStorage:    cachedTaskRepository,
+		TaskStorage:    cachedTaskStorage,
 		AnagramService: anagramService,
 		WorkerPool:     workerPool,
 		TaskQueue:      taskQueue,
 		Handlers:       handlers,
+		TaskStats:      taskStats,
 	}
 }
 

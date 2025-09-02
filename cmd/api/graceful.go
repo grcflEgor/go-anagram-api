@@ -6,17 +6,18 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/grcflEgor/go-anagram-api/internal/config"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"go.uber.org/zap"
 )
 
 type GracefulManager struct {
-	config *Config
+	config *config.Config
 	server *Server
 	deps   *Dependencies
 }
 
-func NewGracefulManager(config *Config, server *Server, deps *Dependencies) *GracefulManager {
+func NewGracefulManager(config *config.Config, server *Server, deps *Dependencies) *GracefulManager {
 	return &GracefulManager{
 		config: config,
 		server: server,

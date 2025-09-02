@@ -1,0 +1,77 @@
+version: '3'
+
+tasks:
+  lint:
+    desc: "Запускает golangci-lint для проверки кода"
+    cmds: 
+      - golangci-lint run 
+    silent: false 
+
+  test:
+    desc: "Запускает все тесты в проекте"
+    cmds: 
+      - go test ./... -cover
+    silent: false 
+
+  cover:
+    desc: "Запускает тесты с покрытием и показывает HTML отчет"
+    cmds:
+      - go test ./... -coverpkg=./... -coverprofile=coverage.out
+      - go tool cover -html=coverage.out
+    silent: false
+
+  bench:
+    desc: "Запускает все бенчмарки в проекте"
+    cmds: 
+      - go test -bench=. ./... 
+    silent: false 
+  
+  alltest:
+    desc: "Запускает все тесты и бенчмарки"
+    cmds:
+      - go test -v -bench=. ./...
+    silent: false
+
+  fuzz:
+    desc: "Фаззинг-тест для normalizedWord"
+    cmds:
+      - go test -fuzz=FuzzNormalizeWord ./pkg/anagram
+    silent: false
+
+  run:
+    desc: "Запускает сервер"
+    cmds:
+      - go run ./cmd/api/
+    silent: false
+
+  integration:
+    desc: "Запускает интеграционные тесты"
+    cmds:
+      - go test ./internal/test/integration -run ^TestLargeFileStreamingProcessing$ -v > integration_test.log 2>&1
+    silent: false
+
+  docs:
+    desc: "Генерирует Swagger документацию"
+    cmds:
+      - swag init -g cmd/api/main.go -o docs
+    silent: false
+
+  docs-serve:
+    desc: "Запускает сервер для просмотра документации"
+    cmds:
+      - go run ./cmd/docs/
+    silent: false
+
+  docs-view:
+    desc: "Генерирует документацию и открывает в браузере"
+    cmds:
+      - swag init -g cmd/api/main.go -o docs
+      - open http://localhost:8081
+      - go run ./cmd/docs/
+    silent: false
+
+  load-test:
+    desc: "Запускает нагрузочный тест"
+    cmds:
+      - k6 run load_test.js
+    silent: false

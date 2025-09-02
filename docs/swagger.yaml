@@ -1,0 +1,251 @@
+definitions:
+  domain.Task:
+    properties:
+      error:
+        description: Описание ошибки, если задача завершилась неудачно
+        example: timeout exceeded
+        type: string
+      groups_count:
+        description: Количество групп анаграмм
+        example: 2
+        type: integer
+      processing_time_ms:
+        description: Время обработки в миллисекундах
+        example: 150
+        type: integer
+      result:
+        description: Результат группировки анаграмм
+        items:
+          items:
+            type: string
+          type: array
+        type: array
+      status:
+        allOf:
+        - $ref: '#/definitions/domain.TaskStatus'
+        description: Статус выполнения задачи
+        example: completed
+      task_id:
+        description: Уникальный идентификатор задачи
+        example: task-123
+        type: string
+    type: object
+  domain.TaskStatus:
+    enum:
+    - processing
+    - completed
+    - failed
+    type: string
+    x-enum-comments:
+      StatusCompleted: Задача завершена успешно
+      StatusFailed: Задача завершена с ошибкой
+      StatusProcessing: Задача в обработке
+    x-enum-descriptions:
+    - Задача в обработке
+    - Задача завершена успешно
+    - Задача завершена с ошибкой
+    x-enum-varnames:
+    - StatusProcessing
+    - StatusCompleted
+    - StatusFailed
+  v1.APIError:
+    properties:
+      code:
+        description: Код ошибки
+        type: string
+      details:
+        description: Детали ошибки
+        type: string
+      message:
+        description: Сообщение об ошибке
+        type: string
+      status:
+        description: HTTP статус код
+        type: integer
+    type: object
+  v1.CreateTaskResponse:
+    properties:
+      task_id:
+        description: Уникальный идентификатор созданной задачи
+        example: task-123
+        type: string
+    type: object
+  v1.GroupRequest:
+    properties:
+      case_sensitive:
+        description: Учитывать ли регистр при группировке
+        example: false
+        type: boolean
+      words:
+        description: Список слов для группировки
+        example:
+        - '["cat"'
+        - '"act"'
+        - '"tac"]'
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - words
+    type: object
+  v1.HealthResponse:
+    properties:
+      status:
+        description: Статус сервиса
+        example: ok
+        type: string
+    type: object
+  v1.StatsResponse:
+    properties:
+      completed_tasks:
+        description: Количество завершенных задач
+        example: 85
+        type: integer
+      failed_tasks:
+        description: Количество неудачных задач
+        example: 5
+        type: integer
+      total_tasks:
+        description: Общее количество задач
+        example: 100
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/anagrams/cache:
+    delete:
+      description: Очищает кэш задач для освобождения памяти
+      responses:
+        "204":
+          description: Кэш очищен успешно
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/v1.APIError'
+      summary: Очистить кэш
+      tags:
+      - cache
+  /api/v1/anagrams/group:
+    post:
+      consumes:
+      - application/json
+      description: Принимает список слов и создает асинхронную задачу для группировки
+        анаграмм
+      parameters:
+      - description: Список слов и настройки группировки
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.GroupRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Задача создана успешно
+          schema:
+            $ref: '#/definitions/v1.CreateTaskResponse'
+        "400":
+          description: Ошибка валидации или некорректный запрос
+          schema:
+            $ref: '#/definitions/v1.APIError'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/v1.APIError'
+      summary: Создать задачу для группировки анаграмм
+      tags:
+      - anagrams
+  /api/v1/anagrams/groups/{id}:
+    get:
+      description: Возвращает результат группировки анаграмм по ID задачи
+      parameters:
+      - description: ID задачи
+        example: '"task-123"'
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Результат группировки
+          schema:
+            $ref: '#/definitions/domain.Task'
+        "400":
+          description: Отсутствует ID задачи
+          schema:
+            $ref: '#/definitions/v1.APIError'
+        "404":
+          description: Задача не найдена
+          schema:
+            $ref: '#/definitions/v1.APIError'
+      summary: Получить результат задачи
+      tags:
+      - anagrams
+  /api/v1/anagrams/stats:
+    get:
+      description: 'Возвращает статистику по всем задачам: общее количество, завершенные,
+        неудачные'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Статистика задач
+          schema:
+            $ref: '#/definitions/v1.StatsResponse'
+      summary: Получить статистику задач
+      tags:
+      - stats
+  /api/v1/anagrams/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Загружает текстовый файл, содержащий слова, разделённые пробелами/переносами
+        строк
+      parameters:
+      - description: Файл со словами (текстовый файл)
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Учитывать регистр (true/false)
+        example: '"false"'
+        in: formData
+        name: case_sensitive
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Файл загружен, задача создана
+          schema:
+            $ref: '#/definitions/v1.CreateTaskResponse'
+        "400":
+          description: Некорректный файл или пустой файл
+          schema:
+            $ref: '#/definitions/v1.APIError'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/v1.APIError'
+      summary: Загрузить файл со словами
+      tags:
+      - anagrams
+  /api/v1/health:
+    get:
+      description: Возвращает статус работоспособности API
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Сервис доступен
+          schema:
+            $ref: '#/definitions/v1.HealthResponse'
+      summary: Проверка доступности сервиса
+      tags:
+      - health
+swagger: "2.0"

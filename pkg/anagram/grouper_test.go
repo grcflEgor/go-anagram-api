@@ -10,13 +10,15 @@ import (
 
 func TestGroup(t *testing.T) {
 	testCases := []struct {
-		name     string
-		words    []string
-		expected map[string][]string
+		name          string
+		words         []string
+		caseSensitive bool
+		expected      map[string][]string
 	}{
 		{
-			name:  "Base case from TZ",
-			words: []string{"ток", "рост", "кот", "торс", "Кто", "фывап", "рок"},
+			name:          "Base case from TZ",
+			words:         []string{"ток", "рост", "кот", "торс", "Кто", "фывап", "рок"},
+			caseSensitive: false,
 			expected: map[string][]string{
 				"кот":   {"ток", "кот", "Кто"},
 				"орст":  {"рост", "торс"},
@@ -25,29 +27,42 @@ func TestGroup(t *testing.T) {
 			},
 		},
 		{
-			name:     "Empty input slice",
-			words:    []string{},
-			expected: map[string][]string{},
+			name:          "Case sensitive distinguishes words",
+			words:         []string{"кот", "Кот", "ток"},
+			caseSensitive: true,
+			expected: map[string][]string{
+				"кот": {"кот", "ток"},
+				"Кот": {"Кот"},
+			},
 		},
 		{
-			name:  "No anagrams",
-			words: []string{"hello", "world"},
+			name:          "Empty input slice",
+			words:         []string{},
+			caseSensitive: false,
+			expected:      map[string][]string{},
+		},
+		{
+			name:          "No anagrams",
+			words:         []string{"hello", "world"},
+			caseSensitive: false,
 			expected: map[string][]string{
 				"ehllo": {"hello"},
 				"dlorw": {"world"},
 			},
 		},
 		{
-			name:  "Words with special characters and numbers",
-			words: []string{"ав12", "21ва", "тест"},
+			name:          "Words with special characters and numbers",
+			words:         []string{"ав12", "21ва", "тест"},
+			caseSensitive: false,
 			expected: map[string][]string{
 				"12ав": {"ав12", "21ва"},
 				"естт": {"тест"},
 			},
 		},
 		{
-			name:  "Slice with empty strings",
-			words: []string{"first", "", "second", ""},
+			name:          "Slice with empty strings",
+			words:         []string{"first", "", "second", ""},
+			caseSensitive: false,
 			expected: map[string][]string{
 				"first":  {"first"},
 				"cdenos": {"second"},
@@ -57,7 +72,7 @@ func TestGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := Group(context.Background(), tc.words)
+			result, err := Group(context.Background(), tc.words, tc.caseSensitive)
 			if err != nil {
 				t.Fatalf("Group() error = %v", err)
 			}
@@ -86,7 +101,7 @@ func BenchmarkGroup(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, _ = Group(context.Background(), largeInput)
+		_, _ = Group(context.Background(), largeInput, false)
 	}
 }
 
@@ -99,17 +114,19 @@ func FuzzNormalizeWord(f *testing.F) {
 	f.Add("   leading and trailing spaces   ")
 
 	f.Fuzz(func(t *testing.T, word string) {
-		normalized := normalizeWord(word)
+		for _, caseSensitive := range []bool{true, false} {
+			normalized := normalizeWord(word, caseSensitive)
 
-		if strings.ContainsRune(normalized, ' ') {
-			t.Errorf("Нормализованная строка содержит пробел: %q", normalized)
-		}
+			if strings.ContainsRune(normalized, ' ') {
+				t.Errorf("Нормализованная строка содержит пробел: %q", normalized)
+			}
 
-		runes := []rune(normalized)
-		if !sort.SliceIsSorted(runes, func(i, j int) bool {
-			return runes[i] < runes[j]
-		}) {
-			t.Errorf("Нормализованная строка не отсортирована: %q", normalized)
+			runes := []rune(normalized)
+			if !sort.SliceIsSorted(runes, func(i, j int) bool {
+				return runes[i] < runes[j]
+			}) {
+				t.Errorf("Нормализованная строка не отсортирована: %q", normalized)
+			}
 		}
 	})
 }
