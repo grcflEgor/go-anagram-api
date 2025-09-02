@@ -98,7 +98,7 @@ func TestLargeFileStreamingProcessing(t *testing.T) {
 
 	memoryStorage := storage.NewInMemoryStorage()
 	cacheInstance := cache.New(config.Cache.DefaultExpiration, config.Cache.CleanupInterval)
-	cachedStorage := storage.NewCachedTaskRepository(memoryStorage, cacheInstance)
+	cachedStorage := storage.NewCachedTaskStorage(memoryStorage, cacheInstance)
 
 	taskQueue := make(chan *domain.Task, config.Task.QueueSize)
 	stats := service.NewTaskStats()

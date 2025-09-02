@@ -30,15 +30,15 @@ func NewDependencies(config *config.Config) *Dependencies {
 	appValidator := validator.New()
 
 	inMemoryStorage := storage.NewInMemoryStorage()
-	cachedTaskRepository := storage.NewCachedTaskRepository(inMemoryStorage, appCache)
+	cachedTaskStorage := storage.NewCachedTaskStorage(inMemoryStorage, appCache)
 
 	taskQueue := make(chan *domain.Task, config.Task.QueueSize)
 
 	taskStats := service.NewTaskStats()
 
-	anagramService := service.NewAnagramService(cachedTaskRepository, taskQueue, taskStats, config.Upload.BatchSize)
+	anagramService := service.NewAnagramService(cachedTaskStorage, taskQueue, taskStats, config.Upload.BatchSize)
 
-	workerPool := worker.NewPool(cachedTaskRepository, taskQueue, logger.AppLogger, config.Processing.Timeout, taskStats, config.Upload.BatchSize)
+	workerPool := worker.NewPool(cachedTaskStorage, taskQueue, logger.AppLogger, config.Processing.Timeout, taskStats, config.Upload.BatchSize)
 
 	handlers := httpHandlers.NewHandlers(anagramService, appValidator, config, taskStats)
 
@@ -46,7 +46,7 @@ func NewDependencies(config *config.Config) *Dependencies {
 		Config:         config,
 		Cache:          appCache,
 		Validator:      appValidator,
-		TaskStorage:    cachedTaskRepository,
+		TaskStorage:    cachedTaskStorage,
 		AnagramService: anagramService,
 		WorkerPool:     workerPool,
 		TaskQueue:      taskQueue,

@@ -30,6 +30,10 @@ type Pool struct {
 }
 
 func NewPool(storage storage.TaskStorage, taskQueue chan *domain.Task, logger *zap.Logger, processingTimeout time.Duration, stats *service.TaskStats, batchSize int) *Pool {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+	
 	return &Pool{
 		storage:   storage,
 		taskQueue: taskQueue,

@@ -19,15 +19,15 @@ type Handlers struct {
 	anagramService service.AnagramServiceProvider
 	validator      *validator.Validate
 	config         *config.Config
-	stats      *service.TaskStats
+	stats          service.TaskStatsProvider
 }
 
-func NewHandlers(anagramService service.AnagramServiceProvider, validator *validator.Validate, config *config.Config, stats *service.TaskStats) *Handlers {
+func NewHandlers(anagramService service.AnagramServiceProvider, validator *validator.Validate, config *config.Config, stats service.TaskStatsProvider) *Handlers {
 	return &Handlers{
 		anagramService: anagramService,
 		validator:      validator,
 		config:         config,
-		stats:      stats,
+		stats:          stats,
 	}
 }
 

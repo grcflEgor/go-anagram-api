@@ -11,25 +11,25 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ TaskStorage = (*CachedTaskRepository)(nil)
+var _ TaskStorage = (*CachedTaskStorage)(nil)
 
-type CachedTaskRepository struct {
+type CachedTaskStorage struct {
 	next  TaskStorage
 	cache *cache.Cache
 }
 
-func NewCachedTaskRepository(next TaskStorage, cache *cache.Cache) *CachedTaskRepository {
-	return &CachedTaskRepository{
+func NewCachedTaskStorage(next TaskStorage, cache *cache.Cache) *CachedTaskStorage {
+	return &CachedTaskStorage{
 		next:  next,
 		cache: cache,
 	}
 }
 
-func (r *CachedTaskRepository) GetByID(ctx context.Context, id string) (*domain.Task, error) {
+func (r *CachedTaskStorage) GetByID(ctx context.Context, id string) (*domain.Task, error) {
 	l := logger.FromContext(ctx)
 
 	tr := otel.Tracer("repository")
-	ctx, span := tr.Start(ctx, "CachedTaskRepository.GetByID")
+	ctx, span := tr.Start(ctx, "CachedTaskStorage.GetByID")
 	defer span.End()
 
 	if task, found := r.cache.Get(id); found {
@@ -51,11 +51,11 @@ func (r *CachedTaskRepository) GetByID(ctx context.Context, id string) (*domain.
 	return task, nil
 }
 
-func (r *CachedTaskRepository) Save(ctx context.Context, task *domain.Task) error {
+func (r *CachedTaskStorage) Save(ctx context.Context, task *domain.Task) error {
 	l := logger.FromContext(ctx)
 
 	tr := otel.Tracer("repository")
-	ctx, span := tr.Start(ctx, "CachedTaskRepository.Save")
+	ctx, span := tr.Start(ctx, "CachedTaskStorage.Save")
 	defer span.End()
 
 	if err := r.next.Save(ctx, task); err != nil {
@@ -69,11 +69,11 @@ func (r *CachedTaskRepository) Save(ctx context.Context, task *domain.Task) erro
 	return nil
 }
 
-func (r *CachedTaskRepository) Flush(ctx context.Context) error {
+func (r *CachedTaskStorage) Flush(ctx context.Context) error {
 	l := logger.FromContext(ctx)
 
 	tr := otel.Tracer("repository")
-	_, span := tr.Start(ctx, "CachedTaskRepository.Flush")
+	_, span := tr.Start(ctx, "CachedTaskStorage.Flush")
 	defer span.End()
 
 	r.cache.Flush()
