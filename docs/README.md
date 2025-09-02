@@ -1,4 +1,4 @@
-# Swagger Documentation для Anagram API
+# Swagger Documentation для go-anagram-api
 
 Этот каталог содержит автоматически сгенерированную документацию API для сервиса группировки анаграмм.
 

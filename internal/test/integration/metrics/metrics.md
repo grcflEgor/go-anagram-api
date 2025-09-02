@@ -96,3 +96,9 @@
 | UploadLargeFileViaHTTP | 0.08 | 78 | 150000 | 4528 |
 | StreamingPerformanceTest | 2.00 | 107 | 200000 | 4528 |
 | ResultsCorrectnessTest | 0.00 | 0 | 19 | 8 |
+| UploadLargeFileViaHTTP | 0.08 | 78 | 150000 | 4528 |
+| StreamingPerformanceTest | 2.00 | 108 | 200000 | 4528 |
+| ResultsCorrectnessTest | 0.00 | 0 | 19 | 8 |
+| UploadLargeFileViaHTTP | 0.08 | 82 | 150000 | 4528 |
+| StreamingPerformanceTest | 2.00 | 160 | 200000 | 4528 |
+| ResultsCorrectnessTest | 0.00 | 0 | 19 | 8 |

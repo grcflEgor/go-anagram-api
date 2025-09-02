@@ -12,11 +12,11 @@ type Config struct {
 	}
 
 	Task struct {
-		QueueSize int `env:"TASK_QUEUE_SIZE" envDefault:"100"`
+		QueueSize int `env:"TASK_QUEUE_SIZE" envDefault:"1000"`
 	}
 
 	Worker struct {
-		Count int `env:"NUM_WORKERS" envDefault:"4"`
+		Count int `env:"NUM_WORKERS" envDefault:"50"`
 	}
 
 	Cache struct {
@@ -33,7 +33,7 @@ type Config struct {
 	}
 
 	RateLimit struct {
-		Requests int           `env:"RATE_LIMIT_REQUESTS" envDefault:"100"`
+		Requests int           `env:"RATE_LIMIT_REQUESTS" envDefault:"1000"`
 		Window   time.Duration `env:"RATE_LIMIT_WINDOW" envDefault:"1m"`
 	}
 
