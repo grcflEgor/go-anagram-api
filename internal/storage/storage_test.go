@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
+	"github.com/grcflEgor/go-anagram-api/internal/domain/repositories"
 	"github.com/grcflEgor/go-anagram-api/internal/test/integration/mocks"
 	"github.com/patrickmn/go-cache"
 )
 
-func newTestCache(base TaskStorage) *CachedTaskStorage {
+func newTestCache(base repositories.TaskStorage) *CachedTaskStorage {
 	c := cache.New(5*time.Minute, 10*time.Minute)
 	return NewCachedTaskStorage(base, c)
 }

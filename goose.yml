@@ -1,0 +1,6 @@
+db:
+  migrations-dir: db/migrations
+
+  driver: postgres
+
+  dsn: ${DATABASE_URL}

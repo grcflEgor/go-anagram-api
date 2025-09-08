@@ -2,14 +2,20 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/grcflEgor/go-anagram-api/internal/config"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"github.com/grcflEgor/go-anagram-api/pkg/tracing"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+        log.Println("No .env file found")
+    }
+
 	logger.InitLogger()
 	defer func() { _ = logger.AppLogger.Sync() }()
 

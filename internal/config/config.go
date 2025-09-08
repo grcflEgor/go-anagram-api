@@ -16,7 +16,7 @@ type Config struct {
 	}
 
 	Worker struct {
-		Count int `env:"NUM_WORKERS" envDefault:"50"`
+		Count int `env:"NUM_WORKERS" envDefault:"10"`
 	}
 
 	Cache struct {
@@ -45,6 +45,11 @@ type Config struct {
 		MaxFileSize  int64  `env:"UPLOAD_MAX_FILE_SIZE" envDefault:"20971520"`
 		AllowedTypes string `env:"UPLOAD_ALLOWED_TYPES" envDefault:"application/json,application/csv,text/plain"`
 		BatchSize int `env:"UPLOAD_BATCH_SIZE" envDefault:"10000"`
+	}
+
+	DBconfig struct {
+		MaxConns int `env:"DB_MAX_CONNS" envDefault:"25"`
+    	MinConns int `env:"DB_MIN_CONNS" envDefault:"5"`
 	}
 }
 

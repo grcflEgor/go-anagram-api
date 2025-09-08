@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
-	"github.com/grcflEgor/go-anagram-api/internal/storage"
+	"github.com/grcflEgor/go-anagram-api/internal/domain/repositories"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
@@ -17,13 +17,13 @@ import (
 var _ AnagramServiceProvider = (*AnagramService)(nil)
 
 type AnagramService struct {
-	storage   storage.TaskStorage
+	storage   repositories.TaskStorage
 	taskQueue chan<- *domain.Task
 	taskStats *TaskStats
 	batchSize int
 }
 
-func NewAnagramService(storage storage.TaskStorage, taskQueue chan<- *domain.Task, taskStats *TaskStats, batchSize int) *AnagramService {
+func NewAnagramService(storage repositories.TaskStorage, taskQueue chan<- *domain.Task, taskStats *TaskStats, batchSize int) *AnagramService {
 	return &AnagramService{
 		storage:   storage,
 		taskQueue: taskQueue,

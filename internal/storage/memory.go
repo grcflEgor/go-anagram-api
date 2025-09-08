@@ -6,9 +6,10 @@ import (
 	"sync"
 
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
+	"github.com/grcflEgor/go-anagram-api/internal/domain/repositories"
 )
 
-var _ TaskStorage = (*InMemoryStorage)(nil)
+var _ repositories.TaskStorage = (*InMemoryStorage)(nil)
 
 type InMemoryStorage struct {
 	mu    sync.RWMutex

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
+	"github.com/grcflEgor/go-anagram-api/internal/domain/repositories"
 	"github.com/grcflEgor/go-anagram-api/internal/service"
-	"github.com/grcflEgor/go-anagram-api/internal/storage"
 	"github.com/grcflEgor/go-anagram-api/pkg/anagram"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"go.opentelemetry.io/otel"
@@ -20,7 +20,7 @@ import (
 )
 
 type Pool struct {
-	storage           storage.TaskStorage
+	storage           repositories.TaskStorage
 	taskQueue         chan *domain.Task
 	logger            *zap.Logger
 	wg                sync.WaitGroup
@@ -29,7 +29,7 @@ type Pool struct {
 	batchSize         int
 }
 
-func NewPool(storage storage.TaskStorage, taskQueue chan *domain.Task, logger *zap.Logger, processingTimeout time.Duration, stats *service.TaskStats, batchSize int) *Pool {
+func NewPool(storage repositories.TaskStorage, taskQueue chan *domain.Task, logger *zap.Logger, processingTimeout time.Duration, stats *service.TaskStats, batchSize int) *Pool {
 	if logger == nil {
 		logger = zap.NewNop()
 	}

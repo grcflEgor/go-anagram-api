@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
+	"github.com/grcflEgor/go-anagram-api/internal/domain/repositories"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"github.com/patrickmn/go-cache"
 	"go.opentelemetry.io/otel"
@@ -11,14 +12,14 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ TaskStorage = (*CachedTaskStorage)(nil)
+var _ repositories.TaskStorage = (*CachedTaskStorage)(nil)
 
 type CachedTaskStorage struct {
-	next  TaskStorage
+	next  repositories.TaskStorage
 	cache *cache.Cache
 }
 
-func NewCachedTaskStorage(next TaskStorage, cache *cache.Cache) *CachedTaskStorage {
+func NewCachedTaskStorage(next repositories.TaskStorage, cache *cache.Cache) *CachedTaskStorage {
 	return &CachedTaskStorage{
 		next:  next,
 		cache: cache,
