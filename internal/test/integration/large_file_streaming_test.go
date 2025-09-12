@@ -23,10 +23,12 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 	"github.com/grcflEgor/go-anagram-api/internal/service"
 	"github.com/grcflEgor/go-anagram-api/internal/storage"
+	"github.com/grcflEgor/go-anagram-api/internal/test/integration/mocks"
 	"github.com/grcflEgor/go-anagram-api/internal/worker"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -97,13 +99,16 @@ func TestLargeFileStreamingProcessing(t *testing.T) {
 	memoryStorage := storage.NewInMemoryStorage()
 	cacheInstance := cache.New(config.Cache.DefaultExpiration, config.Cache.CleanupInterval)
 	cachedStorage := storage.NewCachedTaskStorage(memoryStorage, cacheInstance)
+	redisCache := &mocks.CacheTaskStorage{}
+	redisCache.On("Save", mock.Anything, mock.Anything).Return(nil)
+	redisCache.On("GetByID", mock.Anything, mock.Anything).Return(nil, nil)
 
 	taskQueue := make(chan *domain.Task, config.Task.QueueSize)
 	stats := service.NewTaskStats()
 
 	batchSize := 1000
-	anagramService := service.NewAnagramService(cachedStorage, taskQueue, stats, batchSize)
-	workerPool := worker.NewPool(cachedStorage, taskQueue, logger.AppLogger, config.Processing.Timeout, stats, batchSize)
+	anagramService := service.NewAnagramService(cachedStorage, redisCache, taskQueue, stats, batchSize)
+	workerPool := worker.NewPool(cachedStorage, redisCache, taskQueue, logger.AppLogger, config.Processing.Timeout, stats, batchSize)
 
 	workerPool.Run(config.Worker.Count)
 	defer workerPool.Stop()

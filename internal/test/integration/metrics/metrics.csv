@@ -114,3 +114,6 @@ ResultsCorrectnessTest,0.00,0,19,8
 UploadLargeFileViaHTTP,0.07,75,150000,4528
 StreamingPerformanceTest,2.00,104,200000,4528
 ResultsCorrectnessTest,0.00,0,19,8
+UploadLargeFileViaHTTP,0.12,115,150000,4528
+StreamingPerformanceTest,2.02,102,200000,4528
+ResultsCorrectnessTest,0.00,0,19,8

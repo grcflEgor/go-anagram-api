@@ -10,22 +10,26 @@ import (
 	"github.com/google/uuid"
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 	"github.com/grcflEgor/go-anagram-api/internal/domain/repositories"
+	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"go.uber.org/zap"
 )
 
 var _ AnagramServiceProvider = (*AnagramService)(nil)
 
 type AnagramService struct {
 	storage   repositories.TaskStorage
+	cache repositories.CacheTaskStorage
 	taskQueue chan<- *domain.Task
 	taskStats *TaskStats
 	batchSize int
 }
 
-func NewAnagramService(storage repositories.TaskStorage, taskQueue chan<- *domain.Task, taskStats *TaskStats, batchSize int) *AnagramService {
+func NewAnagramService(storage repositories.TaskStorage, cache repositories.CacheTaskStorage, taskQueue chan<- *domain.Task, taskStats *TaskStats, batchSize int) *AnagramService {
 	return &AnagramService{
 		storage:   storage,
+		cache: cache,
 		taskQueue: taskQueue,
 		taskStats: taskStats,
 		batchSize: batchSize,
@@ -33,6 +37,8 @@ func NewAnagramService(storage repositories.TaskStorage, taskQueue chan<- *domai
 }
 
 func (as *AnagramService) CreateTask(ctx context.Context, words []string, caseSensitive bool) (string, error) {
+	l := logger.FromContext(ctx)
+
 	tr := otel.Tracer("usecase")
 	ctx, span := tr.Start(ctx, "CreateTask")
 	defer span.End()
@@ -72,19 +78,44 @@ func (as *AnagramService) CreateTask(ctx context.Context, words []string, caseSe
 		return "", err
 	}
 
+	if err := as.cache.Save(ctx, task); err != nil {
+        l.Error("Failed to save task to cache", zap.Error(err))
+        span.RecordError(err)
+    }
+
 	as.taskQueue <- task
 	as.taskStats.IncrementTotalTasks()
 	return task.ID, nil
 }
 
 func (as *AnagramService) GetTaskByID(ctx context.Context, id string) (*domain.Task, error) {
+	l := logger.FromContext(ctx)
+
 	tr := otel.Tracer("usecase")
 	ctx, span := tr.Start(ctx, "GetTaskByID")
 	defer span.End()
 
-	task, err := as.storage.GetByID(ctx, id)
+	task, err := as.cache.GetByID(ctx, id)
+	if err != nil {
+		l.Error("err to get from redis")
+		span.RecordError(err)
+	}
+
+	if task != nil {
+		as.taskStats.IncrementCacheHits()
+	}
+
+	as.taskStats.IncrementCacheMiss()
+	task, err = as.storage.GetByID(ctx, id)
 	if err != nil {
 		span.RecordError(err)
+		return nil, err
+	}
+
+	if task != nil {
+		if err := as.cache.Save(ctx, task); err != nil {
+		span.RecordError(err)
+		}
 	}
 	return task, err
 }
@@ -94,8 +125,9 @@ func (as *AnagramService) ClearCache(ctx context.Context) error {
 	ctx, span := tr.Start(ctx, "ClearCache")
 	defer span.End()
 
-	if flusher, ok := as.storage.(interface {Flush(ctx context.Context) error}); ok {
-		return flusher.Flush(ctx)
+	if err := as.cache.DeleteAll(ctx); err != nil {
+		span.RecordError(err)
+		return err
 	}
 	return nil
 }

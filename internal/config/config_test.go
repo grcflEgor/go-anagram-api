@@ -15,8 +15,8 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, ":8080", cfg.Server.Port)
-	require.Equal(t, 1000, cfg.Task.QueueSize) 
-	require.Equal(t, 50, cfg.Worker.Count)    
+	require.Equal(t, 1000, cfg.Task.QueueSize)
+	require.Equal(t, 10, cfg.Worker.Count)
 	require.Equal(t, 5*time.Minute, cfg.Cache.DefaultExpiration)
 	require.Equal(t, 10*time.Minute, cfg.Cache.CleanupInterval)
 	require.Equal(t, "anagram-api", cfg.Service.Name)

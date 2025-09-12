@@ -16,12 +16,11 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/worker"
 	"github.com/grcflEgor/go-anagram-api/pkg/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/patrickmn/go-cache"
+	"github.com/redis/go-redis/v9"
 )
 
 type Dependencies struct {
 	Config         *config.Config
-	Cache          *cache.Cache
 	Validator      *validator.Validate
 	TaskStorage    repositories.TaskStorage
 	AnagramService service.AnagramServiceProvider
@@ -32,30 +31,32 @@ type Dependencies struct {
 }
 
 func NewDependencies(config *config.Config) *Dependencies {
-	appCache := cache.New(config.Cache.DefaultExpiration, config.Cache.CleanupInterval)
-
 	appValidator := validator.New()
 
 	pool := mustCreatePgxPool(config)
 
+	redisClient := mustCreateRedisClient(config)
+
 	postgresPool := storage.NewPostgresTaskRepo(pool)
-	cachedTaskStorage := storage.NewCachedTaskStorage(postgresPool, appCache)
+
+	redisCachedRepo := storage.NewRedisCachedStorage(redisClient, config.Cache.DefaultExpiration)
+
+	//cachedTaskStorage := storage.NewCachedTaskStorage(postgresPool, redisCacheRepo)
 
 	taskQueue := make(chan *domain.Task, config.Task.QueueSize)
 
 	taskStats := service.NewTaskStats()
 
-	anagramService := service.NewAnagramService(cachedTaskStorage, taskQueue, taskStats, config.Upload.BatchSize)
+	anagramService := service.NewAnagramService(postgresPool, redisCachedRepo, taskQueue, taskStats, config.Upload.BatchSize)
 
-	workerPool := worker.NewPool(cachedTaskStorage, taskQueue, logger.AppLogger, config.Processing.Timeout, taskStats, config.Upload.BatchSize)
+	workerPool := worker.NewPool(postgresPool, redisCachedRepo, taskQueue, logger.AppLogger, config.Processing.Timeout, taskStats, config.Upload.BatchSize)
 
 	handlers := httpHandlers.NewHandlers(anagramService, appValidator, config, taskStats)
 
 	return &Dependencies{
 		Config:         config,
-		Cache:          appCache,
 		Validator:      appValidator,
-		TaskStorage:    cachedTaskStorage,
+		TaskStorage:    postgresPool,
 		AnagramService: anagramService,
 		WorkerPool:     workerPool,
 		TaskQueue:      taskQueue,
@@ -101,4 +102,28 @@ func mustCreatePgxPool(cfg *config.Config) *pgxpool.Pool {
 
     logger.AppLogger.Info("Database connection pool created and verified")
     return pool
+}
+
+func mustCreateRedisClient(cfg *config.Config) *redis.Client {
+    redisURL := os.Getenv("REDIS_URL")
+    if redisURL == "" {
+        log.Fatal("FATAL: REDIS_URL environment variable is not set")
+    }
+
+    opt, err := redis.ParseURL(redisURL)
+    if err != nil {
+        log.Fatalf("FATAL: Unable to parse REDIS_URL: %v\n", err)
+    }
+
+    client := redis.NewClient(opt)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1 * time.Minute)
+	defer cancel()
+
+    if err := client.Ping(ctx).Err(); err != nil {
+        log.Fatalf("FATAL: Failed to connect to Redis: %v\n", err)
+    }
+
+    logger.AppLogger.Info("Redis client created and connected")
+    return client
 }

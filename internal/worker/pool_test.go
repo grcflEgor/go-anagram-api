@@ -10,6 +10,7 @@ import (
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 	"github.com/grcflEgor/go-anagram-api/internal/service"
 	"github.com/grcflEgor/go-anagram-api/internal/test/integration/mocks"
+	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 )
 
@@ -33,11 +34,12 @@ func TestMerge(t *testing.T) {
 
 func TestStop(t *testing.T) {
 	storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task)}
+	cache := &mocks.CacheTaskStorage{}
 	taskQueue := make(chan *domain.Task, 1)
 	logger := zap.NewNop()
 	stats := service.NewTaskStats()
 
-	pool := NewPool(storage, taskQueue, logger, time.Second, stats, 10)
+	pool := NewPool(storage, cache, taskQueue, logger, time.Second, stats, 10)
 	go pool.Run(1)
 
 	pool.Stop()
@@ -45,11 +47,13 @@ func TestStop(t *testing.T) {
 
 func TestWorker_ProcessWordsTask_Success(t *testing.T) {
 	storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task)}
+	cache := &mocks.CacheTaskStorage{}
+	cache.On("Save", mock.Anything, mock.Anything).Return(nil)
 	taskQueue := make(chan *domain.Task, 1)
 	logger := zap.NewNop()
 	stats := service.NewTaskStats()
 
-	pool := NewPool(storage, taskQueue, logger, time.Second, stats, 10)
+	pool := NewPool(storage, cache, taskQueue, logger, time.Second, stats, 10)
 	go pool.Run(1)
 	defer pool.Stop()
 
@@ -77,11 +81,13 @@ func TestWorker_ProcessWordsTask_Success(t *testing.T) {
 
 func TestWorker_ProcessFileTask_Error(t *testing.T) {
 	storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task)}
+	cache := &mocks.CacheTaskStorage{}
+	cache.On("Save", mock.Anything, mock.Anything).Return(nil)
 	taskQueue := make(chan *domain.Task, 1)
 	logger := zap.NewNop()
 	stats := service.NewTaskStats()
 
-	pool := NewPool(storage, taskQueue, logger, time.Second, stats, 2)
+	pool := NewPool(storage, cache, taskQueue, logger, time.Second, stats, 2)
 	go pool.Run(1)
 	defer pool.Stop()
 
@@ -104,6 +110,8 @@ func TestWorker_ProcessFileTask_Error(t *testing.T) {
 
 func TestWorker_ProcessFileTask_Success(t *testing.T) {
 	storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task)}
+	cache := &mocks.CacheTaskStorage{}
+	cache.On("Save", mock.Anything, mock.Anything).Return(nil)
 	taskQueue := make(chan *domain.Task, 1)
 	logger := zap.NewNop()
 	stats := service.NewTaskStats()
@@ -115,7 +123,7 @@ func TestWorker_ProcessFileTask_Success(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	pool := NewPool(storage, taskQueue, logger, time.Second, stats, 2)
+	pool := NewPool(storage, cache, taskQueue, logger, time.Second, stats, 2)
 	go pool.Run(1)
 	defer pool.Stop()
 
@@ -142,11 +150,13 @@ func TestWorker_ProcessFileTask_Success(t *testing.T) {
 func TestWorker_TaskTimeout(t *testing.T) {
 	t.Parallel()
 	storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task)}
+	cache := &mocks.CacheTaskStorage{}
+	cache.On("Save", mock.Anything, mock.Anything).Return(nil)
 	taskQueue := make(chan *domain.Task, 1)
 	logger := zap.NewNop()
 	stats := service.NewTaskStats()
 
-	pool := NewPool(storage, taskQueue, logger, 1*time.Nanosecond, stats, 10)
+	pool := NewPool(storage, cache, taskQueue, logger, 1*time.Nanosecond, stats, 10)
 	go pool.Run(1)
 	defer pool.Stop()
 

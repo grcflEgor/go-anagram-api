@@ -6,6 +6,8 @@ type TaskStats struct {
 	TotalTasks atomic.Uint64
 	CompletedTasks atomic.Uint64
 	FailedTasks atomic.Uint64
+	CacheHits atomic.Uint64
+	CacheMiss atomic.Uint64
 }
 
 func NewTaskStats() *TaskStats {
@@ -24,11 +26,20 @@ func (ts *TaskStats) IncrementFailedTasks() {
 	ts.FailedTasks.Add(1)
 }
 
+func (ts *TaskStats) IncrementCacheHits() {
+	ts.CacheHits.Add(1)
+}
+
+func (ts *TaskStats) IncrementCacheMiss() {
+	ts.CacheHits.Add(1)
+}
 
 func (ts *TaskStats) Get() map[string]uint64 {
 	return map[string]uint64{
 		"total_tasks": ts.TotalTasks.Load(),
 		"completed_tasks": ts.CompletedTasks.Load(),
 		"failed_tasks": ts.FailedTasks.Load(),
+		"cache hits": ts.CacheHits.Load(),
+		"cache miss": ts.CacheMiss.Load(),
 	}
 }

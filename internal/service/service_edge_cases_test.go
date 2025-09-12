@@ -8,6 +8,7 @@ import (
 
 	"github.com/grcflEgor/go-anagram-api/internal/domain"
 	"github.com/grcflEgor/go-anagram-api/internal/test/integration/mocks"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestAnagramService_CreateTask_EdgeCases(t *testing.T) {
@@ -47,9 +48,15 @@ func TestAnagramService_CreateTask_EdgeCases(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task), SaveErr: tc.saveErr}
+			cache := &mocks.CacheTaskStorage{}
+			if tc.saveErr != nil {
+				cache.On("Save", mock.Anything, mock.Anything).Return(tc.saveErr)
+			} else {
+				cache.On("Save", mock.Anything, mock.Anything).Return(nil)
+			}
 			taskQueue := make(chan *domain.Task, 1)
 			stats := NewTaskStats()
-			service := NewAnagramService(storage, taskQueue, stats, tc.batchSize)
+			service := NewAnagramService(storage, cache, taskQueue, stats, tc.batchSize)
 			ctx := context.Background()
 			id, err := service.CreateTask(ctx, tc.words, false)
 			if tc.wantErr {
@@ -91,9 +98,13 @@ func TestAnagramService_GetTaskByID_EdgeCases(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			storage := &mocks.MockTaskStorage{Tasks: make(map[string]*domain.Task), GetErr: tc.getErr}
+			cache := &mocks.CacheTaskStorage{}
+			cache.On("GetByID", mock.Anything, mock.Anything).Return(nil, errors.New("cache miss"))
+			cache.On("Save", mock.Anything, mock.Anything).Return(nil)
+
 			taskQueue := make(chan *domain.Task, 1)
 			stats := NewTaskStats()
-			service := NewAnagramService(storage, taskQueue, stats, 10)
+			service := NewAnagramService(storage, cache, taskQueue, stats, 10)
 			ctx := context.Background()
 			if tc.getErr == nil && tc.id != "notfound" {
 				storage.Tasks[tc.id] = &domain.Task{ID: tc.id, CreatedAt: time.Now()}

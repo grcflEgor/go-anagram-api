@@ -21,6 +21,7 @@ import (
 
 type Pool struct {
 	storage           repositories.TaskStorage
+	cache repositories.CacheTaskStorage
 	taskQueue         chan *domain.Task
 	logger            *zap.Logger
 	wg                sync.WaitGroup
@@ -29,13 +30,14 @@ type Pool struct {
 	batchSize         int
 }
 
-func NewPool(storage repositories.TaskStorage, taskQueue chan *domain.Task, logger *zap.Logger, processingTimeout time.Duration, stats *service.TaskStats, batchSize int) *Pool {
+func NewPool(storage repositories.TaskStorage, cache repositories.CacheTaskStorage, taskQueue chan *domain.Task, logger *zap.Logger, processingTimeout time.Duration, stats *service.TaskStats, batchSize int) *Pool {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
 	return &Pool{
 		storage:           storage,
+		cache: cache,
 		taskQueue:         taskQueue,
 		logger:            logger,
 		processingTimeout: processingTimeout,
@@ -123,6 +125,11 @@ func (pool *Pool) worker(id int) {
 			if err := pool.storage.Save(context.Background(), task); err != nil {
 				taskLog.Error("failed to save completed task", zap.String("status", string(task.Status)), zap.Error(err))
 				span.RecordError(err)
+			}
+
+			if err := pool.cache.Save(context.Background(), task); err != nil {
+    			taskLog.Error("failed to save completed task to cache", zap.String("status", string(task.Status)), zap.Error(err))
+    			span.RecordError(err)
 			}
 			taskLog.Info("finished task")
 		}(task)
